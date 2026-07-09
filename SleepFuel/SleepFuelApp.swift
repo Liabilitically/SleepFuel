@@ -1,0 +1,15 @@
+import SwiftUI
+
+@main
+struct SleepFuelApp: App {
+    @State private var appState = AppState()
+
+    var body: some Scene {
+        WindowGroup {
+            RootView()
+                .environment(appState)
+                .preferredColorScheme(.dark)
+                .tint(DS.Palette.accent)
+        }
+    }
+}
