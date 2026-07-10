@@ -10,6 +10,7 @@ final class AppState {
     var path: [MainRoute] = []
     var showPaywall = false
     var showActiveSession = false
+    var showHistory = false
     var presentedReport: NightRecord?
 
     // MARK: - Onboarding & account
@@ -292,6 +293,7 @@ final class AppState {
         session = nil
         presentedReport = nil
         showActiveSession = false
+        showHistory = false
         showPaywall = false
         path = []
         seedDefaults()

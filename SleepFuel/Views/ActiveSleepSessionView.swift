@@ -190,9 +190,9 @@ struct ActiveSleepSessionView: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 36)
                 .background(DS.Palette.surface)
-                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.small, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)
+                    RoundedRectangle(cornerRadius: DS.Radius.small, style: .continuous)
                         .strokeBorder(DS.Palette.border, lineWidth: DS.hairline)
                 )
         }

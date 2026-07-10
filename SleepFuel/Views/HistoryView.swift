@@ -12,31 +12,60 @@ struct HistoryView: View {
     }
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: DS.Space.m) {
-                summaryTiles
+        VStack(spacing: 0) {
+            header
 
-                VStack(alignment: .leading, spacing: DS.Space.m) {
-                    SectionHeader(title: "Last 7 nights")
-                    if nights.isEmpty {
-                        Text("No nights recorded yet. Arm tonight to start.")
-                            .font(.system(size: 14))
-                            .foregroundStyle(DS.Palette.textTertiary)
-                    } else {
-                        VStack(spacing: DS.Space.m) {
-                            ForEach(nights) { nightRow($0) }
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: DS.Space.m) {
+                    summaryTiles
+
+                    VStack(alignment: .leading, spacing: DS.Space.m) {
+                        SectionHeader(title: "Last 7 nights")
+                        if nights.isEmpty {
+                            Text("No nights recorded yet. Arm tonight to start.")
+                                .font(.system(size: 14))
+                                .foregroundStyle(DS.Palette.textTertiary)
+                        } else {
+                            VStack(spacing: DS.Space.m) {
+                                ForEach(nights) { nightRow($0) }
+                            }
                         }
                     }
+                    .padding(DS.Space.m)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .dsCard()
                 }
                 .padding(DS.Space.m)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .dsCard()
             }
-            .padding(DS.Space.m)
         }
-        .background(DS.Palette.obsidian)
-        .navigationTitle("History")
-        .navigationBarTitleDisplayMode(.inline)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(DS.Palette.obsidian.ignoresSafeArea())
+    }
+
+    // Slides in from the left, so the dismiss control sits top-left
+    // and sends the panel back the way it came.
+    private var header: some View {
+        ZStack {
+            Text("History")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(DS.Palette.textPrimary)
+
+            HStack {
+                Button {
+                    state.showHistory = false
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(DS.Palette.textSecondary)
+                        .frame(width: 40, height: 40)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(PressableButtonStyle())
+                Spacer()
+            }
+        }
+        .padding(.horizontal, DS.Space.s)
+        .frame(height: 48)
     }
 
     // MARK: - Summary

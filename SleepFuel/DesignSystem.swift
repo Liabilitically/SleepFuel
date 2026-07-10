@@ -26,8 +26,18 @@ enum DS {
     }
 
     enum Radius {
+        /// Cards, buttons, and any control tall enough to carry it share one radius.
         static let card: CGFloat = 14
-        static let control: CGFloat = 8
+        static let control: CGFloat = 14
+        /// Compact elements (tags, checkboxes, icon badges) scale the same voice down.
+        static let small: CGFloat = 8
+    }
+
+    enum Fonts {
+        /// Hero numbers: fuel, countdown, grade.
+        static let display = Font.system(size: 72, weight: .bold, design: .rounded)
+        /// Screen and onboarding headlines.
+        static let title = Font.system(size: 28, weight: .bold)
     }
 
     /// One physical pixel.

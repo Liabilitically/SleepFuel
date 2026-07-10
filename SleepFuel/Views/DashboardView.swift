@@ -25,9 +25,9 @@ struct DashboardView: View {
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button {
-                    state.path.append(.history)
+                    state.showHistory = true
                 } label: {
-                    Image(systemName: "chart.bar.fill")
+                    Image(systemName: "clock.arrow.circlepath")
                         .foregroundStyle(DS.Palette.textSecondary)
                 }
             }
@@ -53,11 +53,10 @@ struct DashboardView: View {
                 TagView(text: state.sessionState.label, color: stateColor)
             }
 
-            FuelGaugeView(fuelMinutes: state.availableFuel, capMinutes: state.dailyFuelCap)
-                .frame(width: 200, height: 200)
+            FuelBatteryView(fuelMinutes: state.availableFuel, capMinutes: state.dailyFuelCap)
                 .padding(.vertical, DS.Space.s)
 
-            Text("Cap \(TimeFormat.hoursMinutes(state.dailyFuelCap)) · \(state.fuelMode.title) mode")
+            Text("Fuel available today · cap \(TimeFormat.hoursMinutes(state.dailyFuelCap)) · \(state.fuelMode.title) mode")
                 .font(.system(size: 13))
                 .foregroundStyle(DS.Palette.textTertiary)
         }
@@ -142,7 +141,7 @@ struct DashboardView: View {
     private var blockedAppsCard: some View {
         VStack(alignment: .leading, spacing: DS.Space.m) {
             HStack {
-                SectionHeader(title: "Shielded until fueled")
+                SectionHeader(title: "Blocked apps")
                 Text("\(state.selectedTargets.count)")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(DS.Palette.textSecondary)

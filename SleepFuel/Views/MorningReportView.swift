@@ -18,7 +18,7 @@ struct MorningReportView: View {
                         .foregroundStyle(DS.Palette.textTertiary)
 
                     Text(report.grade)
-                        .font(.system(size: 72, weight: .bold, design: .rounded))
+                        .font(DS.Fonts.display)
                         .foregroundStyle(gradeColor)
                         .scaleEffect(revealed || reduceMotion ? 1 : 0.8)
                         .opacity(revealed || reduceMotion ? 1 : 0)

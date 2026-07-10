@@ -9,14 +9,12 @@ struct ScheduleSetupView: View {
 
     var body: some View {
         Group {
-            if case .onboarding(let onContinue) = mode {
-                OnboardingChrome(
-                    step: 2,
-                    totalSteps: 4,
-                    title: "Protect your sleep window",
-                    subtitle: "Every minute inside the window generates fuel. Every breach costs you.",
-                    onContinue: onContinue
-                ) {
+            if mode == .onboarding {
+                VStack(alignment: .leading, spacing: 0) {
+                    OnboardingStepHeader(
+                        title: "Protect your sleep window",
+                        subtitle: "Every minute inside the window generates fuel. Every breach costs you."
+                    )
                     ScrollView(showsIndicators: false) {
                         scheduleContent
                     }
@@ -150,7 +148,7 @@ struct ScheduleSetupView: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 36)
                 .background(isOn ? DS.Palette.accent : DS.Palette.elevated)
-                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.small, style: .continuous))
         }
         .buttonStyle(PressableButtonStyle())
     }

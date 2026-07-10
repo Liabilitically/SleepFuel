@@ -7,15 +7,14 @@ struct PermissionSetupView: View {
 
     var body: some View {
         Group {
-            if case .onboarding(let onContinue) = mode {
-                OnboardingChrome(
-                    step: 0,
-                    totalSteps: 4,
-                    title: "Set up enforcement",
-                    subtitle: "SleepFuel needs Screen Time access later to block selected apps. For now, this prototype simulates it.",
-                    onContinue: onContinue
-                ) {
+            if mode == .onboarding {
+                VStack(alignment: .leading, spacing: 0) {
+                    OnboardingStepHeader(
+                        title: "Permissions",
+                        subtitle: "SleepFuel needs Screen Time access later to block selected apps. For now, this prototype simulates it."
+                    )
                     rows
+                    Spacer(minLength: 0)
                 }
             } else {
                 ScrollView {
@@ -109,9 +108,9 @@ struct PermissionSetupView: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(DS.Palette.elevated)
-                    .clipShape(RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: DS.Radius.small, style: .continuous))
                     .overlay(
-                        RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)
+                        RoundedRectangle(cornerRadius: DS.Radius.small, style: .continuous)
                             .strokeBorder(DS.Palette.border, lineWidth: DS.hairline)
                     )
             }

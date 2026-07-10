@@ -70,9 +70,9 @@ struct TagView: View {
             .padding(.horizontal, DS.Space.s)
             .padding(.vertical, 4)
             .background(DS.Palette.elevated)
-            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.small, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)
+                RoundedRectangle(cornerRadius: DS.Radius.small, style: .continuous)
                     .strokeBorder(DS.Palette.border, lineWidth: DS.hairline)
             )
     }
@@ -87,9 +87,32 @@ struct ProTag: View {
             .padding(.horizontal, 6)
             .padding(.vertical, 3)
             .overlay(
-                RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)
+                RoundedRectangle(cornerRadius: DS.Radius.small, style: .continuous)
                     .strokeBorder(DS.Palette.accent.opacity(0.6), lineWidth: DS.hairline)
             )
+    }
+}
+
+// MARK: - Checkbox
+
+struct CheckBox: View {
+    let isOn: Bool
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: DS.Radius.small, style: .continuous)
+                .fill(isOn ? DS.Palette.accent : DS.Palette.elevated)
+            if isOn {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.white)
+            }
+        }
+        .frame(width: 24, height: 24)
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.Radius.small, style: .continuous)
+                .strokeBorder(isOn ? DS.Palette.accent : DS.Palette.border, lineWidth: 1)
+        )
     }
 }
 
@@ -143,9 +166,9 @@ struct IconBadge: View {
             .foregroundStyle(tint)
             .frame(width: size, height: size)
             .background(DS.Palette.elevated)
-            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.small, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)
+                RoundedRectangle(cornerRadius: DS.Radius.small, style: .continuous)
                     .strokeBorder(DS.Palette.border, lineWidth: DS.hairline)
             )
     }
@@ -223,47 +246,25 @@ struct HoldToConfirmButton: View {
     }
 }
 
-// MARK: - Screen chrome for onboarding steps
+// MARK: - Onboarding step header
 
-struct OnboardingChrome<Content: View>: View {
-    let step: Int
-    let totalSteps: Int
+struct OnboardingStepHeader: View {
     let title: String
     let subtitle: String
-    var continueTitle: String = "Continue"
-    var continueEnabled: Bool = true
-    let onContinue: () -> Void
-    @ViewBuilder let content: () -> Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 6) {
-                ForEach(0..<totalSteps, id: \.self) { index in
-                    RoundedRectangle(cornerRadius: 2, style: .continuous)
-                        .fill(index <= step ? DS.Palette.accent : DS.Palette.elevated)
-                        .frame(height: 3)
-                }
-            }
-            .padding(.bottom, DS.Space.xl)
-
+        VStack(alignment: .leading, spacing: DS.Space.s) {
             Text(title)
-                .font(.system(size: 28, weight: .bold))
+                .font(DS.Fonts.title)
                 .foregroundStyle(DS.Palette.textPrimary)
-                .padding(.bottom, DS.Space.s)
+                .fixedSize(horizontal: false, vertical: true)
 
             Text(subtitle)
                 .font(.system(size: 15))
                 .foregroundStyle(DS.Palette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
-                .padding(.bottom, DS.Space.l)
-
-            content()
-
-            Spacer(minLength: DS.Space.m)
-
-            PrimaryButton(title: continueTitle, isEnabled: continueEnabled, action: onContinue)
         }
-        .padding(DS.Space.l)
-        .background(DS.Palette.obsidian)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.bottom, DS.Space.l)
     }
 }

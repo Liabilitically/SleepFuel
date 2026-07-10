@@ -7,15 +7,12 @@ struct MockAppSelectionView: View {
 
     var body: some View {
         Group {
-            if case .onboarding(let onContinue) = mode {
-                OnboardingChrome(
-                    step: 1,
-                    totalSteps: 4,
-                    title: "Choose what drains your night",
-                    subtitle: "These stay shielded until you've earned fuel. Pick the ones that actually keep you up.",
-                    continueEnabled: !state.selectedTargetIDs.isEmpty,
-                    onContinue: onContinue
-                ) {
+            if mode == .onboarding {
+                VStack(alignment: .leading, spacing: 0) {
+                    OnboardingStepHeader(
+                        title: "Choose what drains your night",
+                        subtitle: "These stay shielded until you've earned fuel. Pick the ones that actually keep you up."
+                    )
                     ScrollView(showsIndicators: false) {
                         selectionContent
                     }

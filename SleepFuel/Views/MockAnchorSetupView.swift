@@ -11,20 +11,12 @@ struct MockAnchorSetupView: View {
 
     var body: some View {
         Group {
-            if case .onboarding(let onContinue) = mode {
-                OnboardingChrome(
-                    step: 3,
-                    totalSteps: 4,
-                    title: "Anchor mode",
-                    subtitle: "Your anchor is a physical checkpoint placed away from your bed. Scanning it each night proves your phone ended up out of reach.",
-                    continueTitle: "Finish setup",
-                    continueEnabled: scanned && placedAway,
-                    onContinue: {
-                        state.anchorConfigured = true
-                        state.save()
-                        onContinue()
-                    }
-                ) {
+            if mode == .onboarding {
+                VStack(alignment: .leading, spacing: 0) {
+                    OnboardingStepHeader(
+                        title: "Anchor mode",
+                        subtitle: "Your anchor is a physical checkpoint placed away from your bed. Scanning it each night proves your phone ended up out of reach."
+                    )
                     ScrollView(showsIndicators: false) {
                         anchorContent
                     }
@@ -112,15 +104,10 @@ struct MockAnchorSetupView: View {
                 withAnimation(DS.motion(reduceMotion)) {
                     placedAway.toggle()
                 }
-                if case .standalone = mode {
-                    state.anchorConfigured = scanned && placedAway
-                    state.save()
-                }
+                syncConfigured()
             } label: {
                 HStack(spacing: DS.Space.m) {
-                    Image(systemName: placedAway ? "checkmark.square.fill" : "square")
-                        .font(.system(size: 20))
-                        .foregroundStyle(placedAway ? DS.Palette.accent : DS.Palette.textTertiary)
+                    CheckBox(isOn: placedAway)
                     Text("I placed my anchor away from bed")
                         .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(DS.Palette.textPrimary)
@@ -153,11 +140,13 @@ struct MockAnchorSetupView: View {
                 scanning = false
                 scanned = true
             }
-            if case .standalone = mode {
-                state.anchorConfigured = scanned && placedAway
-                state.save()
-            }
+            syncConfigured()
         }
+    }
+
+    private func syncConfigured() {
+        state.anchorConfigured = scanned && placedAway
+        state.save()
     }
 }
 
@@ -187,9 +176,9 @@ struct MockQRView: View {
         }
         .padding(DS.Space.m)
         .background(DS.Palette.obsidian)
-        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.small, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)
+            RoundedRectangle(cornerRadius: DS.Radius.small, style: .continuous)
                 .strokeBorder(scanned ? DS.Palette.success.opacity(0.5) : DS.Palette.border, lineWidth: DS.hairline)
         )
         .accessibilityLabel("SleepFuel anchor code")

@@ -42,7 +42,7 @@ struct EmergencyUnlockView: View {
                 .padding(.bottom, DS.Space.m)
 
             Text("Unlocking now burns tomorrow's entertainment fuel.")
-                .font(.system(size: 26, weight: .bold))
+                .font(DS.Fonts.title)
                 .foregroundStyle(DS.Palette.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.bottom, DS.Space.s)
@@ -79,9 +79,7 @@ struct EmergencyUnlockView: View {
                 }
             } label: {
                 HStack(spacing: DS.Space.m) {
-                    Image(systemName: acknowledged ? "checkmark.square.fill" : "square")
-                        .font(.system(size: 20))
-                        .foregroundStyle(acknowledged ? DS.Palette.accent : DS.Palette.textTertiary)
+                    CheckBox(isOn: acknowledged)
                     Text("I understand this costs \(max(fuelCost, 0)) minutes of fuel")
                         .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(DS.Palette.textPrimary)

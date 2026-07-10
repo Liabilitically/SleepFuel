@@ -18,7 +18,7 @@ struct PaywallView: View {
         ("flame.fill", "Strict mode"),
         ("qrcode", "Anchor mode"),
         ("exclamationmark.triangle.fill", "Emergency unlock controls"),
-        ("chart.bar.fill", "Weekly history"),
+        ("clock.arrow.circlepath", "Weekly history"),
         ("lock.shield.fill", "Premium enforcement screens")
     ]
 
@@ -56,7 +56,7 @@ struct PaywallView: View {
     private var purchaseContent: some View {
         VStack(alignment: .leading, spacing: DS.Space.m) {
             Text("Make SleepFuel strict enough to actually work.")
-                .font(.system(size: 28, weight: .bold))
+                .font(DS.Fonts.title)
                 .foregroundStyle(DS.Palette.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -135,7 +135,7 @@ struct PaywallView: View {
                 .foregroundStyle(DS.Palette.success)
 
             Text("You're Pro.")
-                .font(.system(size: 28, weight: .bold))
+                .font(DS.Fonts.title)
                 .foregroundStyle(DS.Palette.textPrimary)
 
             Text("Unlimited apps, strict mode, and anchor enforcement are unlocked.")

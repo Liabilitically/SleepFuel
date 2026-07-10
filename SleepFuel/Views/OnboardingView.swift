@@ -2,6 +2,8 @@ import SwiftUI
 
 // MARK: - Flow container
 
+/// Owns the static chrome (progress bar, continue button). Only the step
+/// content between them transitions, so shared elements never shift.
 struct OnboardingFlowView: View {
     @Environment(AppState.self) private var state
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -19,33 +21,67 @@ struct OnboardingFlowView: View {
         ZStack {
             DS.Palette.obsidian.ignoresSafeArea()
 
-            switch step {
-            case .pages:
-                OnboardingPagesView { advance(to: .permissions) }
-                    .transition(stepTransition)
-            case .permissions:
-                PermissionSetupView(mode: .onboarding(onContinue: { advance(to: .apps) }))
-                    .transition(stepTransition)
-            case .apps:
-                MockAppSelectionView(mode: .onboarding(onContinue: { advance(to: .schedule) }))
-                    .transition(stepTransition)
-            case .schedule:
-                ScheduleSetupView(mode: .onboarding(onContinue: {
-                    if state.anchorModeEnabled {
-                        advance(to: .anchor)
-                    } else {
-                        state.completeOnboarding()
+            if step == .pages {
+                OnboardingPagesView {
+                    withAnimation(DS.motion(reduceMotion)) {
+                        step = .permissions
                     }
-                }))
-                .transition(stepTransition)
-            case .anchor:
-                MockAnchorSetupView(mode: .onboarding(onContinue: {
-                    state.completeOnboarding()
-                }))
-                .transition(stepTransition)
+                }
+                .transition(.opacity)
+            } else {
+                setupFlow
+                    .transition(.opacity)
             }
         }
-        .animation(DS.motion(reduceMotion), value: step)
+        .animation(DS.motion(reduceMotion), value: step == .pages)
+    }
+
+    // MARK: - Setup steps (static chrome, sliding content)
+
+    private var setupFlow: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Progress bar — static; only its fill animates.
+            HStack(spacing: 6) {
+                ForEach(1...totalSteps, id: \.self) { index in
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                        .fill(index <= stepNumber ? DS.Palette.accent : DS.Palette.elevated)
+                        .frame(height: 3)
+                }
+            }
+            .animation(DS.motion(reduceMotion), value: stepNumber)
+            .animation(DS.motion(reduceMotion), value: totalSteps)
+            .padding(.bottom, DS.Space.xl)
+
+            // Step content — the only part that slides.
+            ZStack(alignment: .top) {
+                switch step {
+                case .permissions:
+                    PermissionSetupView(mode: .onboarding)
+                        .transition(stepTransition)
+                case .apps:
+                    MockAppSelectionView(mode: .onboarding)
+                        .transition(stepTransition)
+                case .schedule:
+                    ScheduleSetupView(mode: .onboarding)
+                        .transition(stepTransition)
+                case .anchor:
+                    MockAnchorSetupView(mode: .onboarding)
+                        .transition(stepTransition)
+                case .pages:
+                    EmptyView()
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .clipped()
+            .animation(DS.motion(reduceMotion), value: step)
+
+            // Continue button — static; only its label and enabled state change.
+            PrimaryButton(title: continueTitle, isEnabled: continueEnabled) {
+                advance()
+            }
+            .padding(.top, DS.Space.m)
+        }
+        .padding(DS.Space.l)
     }
 
     private var stepTransition: AnyTransition {
@@ -57,7 +93,55 @@ struct OnboardingFlowView: View {
             )
     }
 
-    private func advance(to next: Step) {
+    private var stepNumber: Int {
+        switch step {
+        case .pages, .permissions: return 1
+        case .apps: return 2
+        case .schedule: return 3
+        case .anchor: return 4
+        }
+    }
+
+    private var totalSteps: Int {
+        state.anchorModeEnabled ? 4 : 3
+    }
+
+    private var isLastStep: Bool {
+        step == .anchor || (step == .schedule && !state.anchorModeEnabled)
+    }
+
+    private var continueTitle: String {
+        isLastStep ? "Finish setup" : "Continue"
+    }
+
+    private var continueEnabled: Bool {
+        switch step {
+        case .apps: return !state.selectedTargetIDs.isEmpty
+        case .anchor: return state.anchorConfigured
+        default: return true
+        }
+    }
+
+    private func advance() {
+        switch step {
+        case .pages:
+            move(to: .permissions)
+        case .permissions:
+            move(to: .apps)
+        case .apps:
+            move(to: .schedule)
+        case .schedule:
+            if state.anchorModeEnabled {
+                move(to: .anchor)
+            } else {
+                state.completeOnboarding()
+            }
+        case .anchor:
+            state.completeOnboarding()
+        }
+    }
+
+    private func move(to next: Step) {
         withAnimation(DS.motion(reduceMotion)) {
             step = next
         }
@@ -66,6 +150,7 @@ struct OnboardingFlowView: View {
 
 // MARK: - Four intro pages
 
+/// Header, page dots, and button are static; only the page content slides.
 struct OnboardingPagesView: View {
     let onFinished: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -94,6 +179,7 @@ struct OnboardingPagesView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // Static header
             HStack {
                 Text("SleepFuel")
                     .font(.system(size: 15, weight: .bold))
@@ -103,31 +189,22 @@ struct OnboardingPagesView: View {
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(DS.Palette.textTertiary)
                     .monospacedDigit()
+                    .contentTransition(.numericText())
+                    .animation(DS.motion(reduceMotion), value: index)
             }
             .padding(.bottom, DS.Space.xl)
 
-            Spacer()
+            // Sliding page content
+            ZStack(alignment: .topLeading) {
+                pageContent(pages[index])
+                    .id(index)
+                    .transition(pageTransition)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .clipped()
+            .animation(DS.motion(reduceMotion), value: index)
 
-            Image(systemName: pages[index].symbol)
-                .font(.system(size: 32, weight: .medium))
-                .foregroundStyle(DS.Palette.accent)
-                .padding(.bottom, DS.Space.l)
-
-            Text(pages[index].headline)
-                .font(.system(size: 34, weight: .bold))
-                .foregroundStyle(DS.Palette.textPrimary)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.bottom, DS.Space.m)
-
-            Text(pages[index].body)
-                .font(.system(size: 16))
-                .foregroundStyle(DS.Palette.textSecondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .lineSpacing(3)
-
-            Spacer()
-            Spacer()
-
+            // Static dots
             HStack(spacing: 6) {
                 ForEach(0..<pages.count, id: \.self) { i in
                     Capsule()
@@ -135,8 +212,10 @@ struct OnboardingPagesView: View {
                         .frame(width: i == index ? 20 : 6, height: 6)
                 }
             }
+            .animation(DS.motion(reduceMotion), value: index)
             .padding(.bottom, DS.Space.l)
 
+            // Static button
             PrimaryButton(title: index == pages.count - 1 ? "Set up SleepFuel" : "Continue") {
                 if index < pages.count - 1 {
                     withAnimation(DS.motion(reduceMotion)) {
@@ -148,6 +227,41 @@ struct OnboardingPagesView: View {
             }
         }
         .padding(DS.Space.l)
-        .id(index)
+    }
+
+    private var pageTransition: AnyTransition {
+        reduceMotion
+            ? .opacity
+            : .asymmetric(
+                insertion: .move(edge: .trailing).combined(with: .opacity),
+                removal: .move(edge: .leading).combined(with: .opacity)
+            )
+    }
+
+    private func pageContent(_ page: Page) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Spacer()
+
+            Image(systemName: page.symbol)
+                .font(.system(size: 32, weight: .medium))
+                .foregroundStyle(DS.Palette.accent)
+                .padding(.bottom, DS.Space.l)
+
+            Text(page.headline)
+                .font(DS.Fonts.title)
+                .foregroundStyle(DS.Palette.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, DS.Space.m)
+
+            Text(page.body)
+                .font(.system(size: 16))
+                .foregroundStyle(DS.Palette.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .lineSpacing(3)
+
+            Spacer()
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
