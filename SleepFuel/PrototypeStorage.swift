@@ -1,29 +1,21 @@
 import Foundation
 
-/// Snapshot of everything the prototype persists between launches.
 struct PrototypeSnapshot: Codable {
-    var hasCompletedOnboarding: Bool
-    var isPro: Bool
-    var screenTimeGranted: Bool
-    var notificationsGranted: Bool
-    var anchorConfigured: Bool
-    var selectedTargetIDs: Set<String>
+    var onboardingCompleted: Bool
     var bedtime: Date
     var wakeTime: Date
-    var repeatDays: Set<Int>
-    var fuelMode: FuelMode
-    var dailyFuelCap: Int
-    var anchorModeEnabled: Bool
-    var emergencyUnlockMinutes: Int
-    var availableFuel: Int
-    var sessionState: SessionState
-    var session: ActiveSession?
-    var lastReport: NightRecord?
+    var allowanceCap: Int
+    var blockedAppIDs: Set<String>
+    var blockingStrictness: String
+    var goals: Set<String>
+    var symptoms: Set<String>
+    var todayAllowance: Int
+    var lastNight: NightRecord?
     var history: [NightRecord]
 }
 
 enum PrototypeStorage {
-    private static let key = "sleepfuel.prototype.v1"
+    private static let key = "sleepfuel.v2.snapshot"
 
     static func load() -> PrototypeSnapshot? {
         guard let data = UserDefaults.standard.data(forKey: key) else { return nil }

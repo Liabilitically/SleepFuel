@@ -3,240 +3,533 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(AppState.self) private var state
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var showResetConfirm = false
+    @State private var showBedtimeEditor = false
+    @State private var showWakeTimeEditor = false
+    @State private var showAllowanceEditor = false
+    @State private var showAppsEditor = false
+    @State private var showStrictnessEditor = false
 
-    private let unlockDurations = [5, 10, 15, 20]
+    private var sleepDurationHours: Double {
+        TimeFormat.sleepDuration(bedtime: state.bedtime, wakeTime: state.wakeTime)
+    }
 
     var body: some View {
-        @Bindable var state = state
+        ZStack {
+            DS.Palette.obsidian.ignoresSafeArea()
 
-        return ScrollView(showsIndicators: false) {
-            VStack(spacing: DS.Space.m) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: DS.Space.l) {
+                    header
 
-                // Sleep
-                VStack(alignment: .leading, spacing: DS.Space.s) {
-                    SectionHeader(title: "Sleep")
                     VStack(spacing: 0) {
-                        navRow(
-                            symbol: "moon.fill",
-                            title: "Schedule",
-                            value: state.sleepWindowLabel
-                        ) {
-                            state.path.append(.editSchedule)
-                        }
-                        divider
-                        navRow(
-                            symbol: "gauge.with.needle.fill",
-                            title: "Fuel mode",
-                            value: state.fuelMode.title
-                        ) {
-                            state.path.append(.editSchedule)
-                        }
-                    }
-                    .dsCard()
-                }
+                        SectionHeader(title: "Sleep Schedule")
+                            .padding(DS.Space.m)
 
-                // Blocking
-                VStack(alignment: .leading, spacing: DS.Space.s) {
-                    SectionHeader(title: "Blocking")
-                    VStack(spacing: 0) {
-                        navRow(
-                            symbol: "square.grid.2x2.fill",
-                            title: "Blocked apps",
-                            value: "\(state.selectedTargets.count) selected"
-                        ) {
-                            state.path.append(.editApps)
-                        }
-                        divider
-                        navRow(
-                            symbol: "qrcode",
-                            title: "Anchor mode",
-                            value: state.anchorConfigured ? "Configured" : "Not set up"
-                        ) {
-                            state.path.append(.anchorSetup)
-                        }
-                        divider
-                        HStack {
-                            IconBadge(symbol: "exclamationmark.triangle.fill", tint: DS.Palette.textTertiary)
-                            Text("Emergency unlock")
-                                .font(.system(size: 15, weight: .medium))
-                                .foregroundStyle(DS.Palette.textPrimary)
-                            Spacer()
-                            Picker("", selection: $state.emergencyUnlockMinutes) {
-                                ForEach(unlockDurations, id: \.self) { minutes in
-                                    Text("\(minutes) min").tag(minutes)
-                                }
-                            }
-                            .pickerStyle(.menu)
-                            .tint(DS.Palette.textSecondary)
-                        }
-                        .padding(DS.Space.m)
-                    }
-                    .dsCard()
-                }
-
-                // Subscription
-                VStack(alignment: .leading, spacing: DS.Space.s) {
-                    SectionHeader(title: "Subscription")
-                    Button {
-                        if !state.isPro {
-                            state.showPaywall = true
-                        }
-                    } label: {
-                        HStack(spacing: DS.Space.m) {
-                            IconBadge(
-                                symbol: "lock.shield.fill",
-                                tint: state.isPro ? DS.Palette.accent : DS.Palette.textTertiary
+                        VStack(spacing: 0) {
+                            settingRow(
+                                label: "Bedtime",
+                                value: TimeFormat.clock(state.bedtime),
+                                action: { showBedtimeEditor = true }
                             )
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(state.isPro ? "SleepFuel Pro" : "Free plan")
-                                    .font(.system(size: 15, weight: .medium))
-                                    .foregroundStyle(DS.Palette.textPrimary)
-                                Text(state.isPro
-                                     ? "All enforcement features unlocked"
-                                     : "Limited to \(AppState.freeSelectionLimit) blocked apps")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(DS.Palette.textTertiary)
-                            }
-                            Spacer()
-                            if !state.isPro {
-                                Text("Upgrade")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundStyle(DS.Palette.accent)
-                            }
+
+                            Divider()
+                                .background(DS.Palette.border)
+                                .padding(.horizontal, DS.Space.m)
+
+                            settingRow(
+                                label: "Wake time",
+                                value: TimeFormat.clock(state.wakeTime),
+                                action: { showWakeTimeEditor = true }
+                            )
+
+                            Divider()
+                                .background(DS.Palette.border)
+                                .padding(.horizontal, DS.Space.m)
+
+                            settingRow(
+                                label: "Sleep window",
+                                value: String(format: "%.1f h", sleepDurationHours),
+                                action: {},
+                                selectable: false
+                            )
                         }
-                        .padding(DS.Space.m)
-                        .contentShape(Rectangle())
                     }
-                    .buttonStyle(PressableButtonStyle())
                     .dsCard()
-                }
 
-                // Privacy
-                VStack(alignment: .leading, spacing: DS.Space.s) {
-                    SectionHeader(title: "Privacy")
-                    Text("SleepFuel is designed to work locally. In the real app, selected apps are handled through Apple's Screen Time APIs. This prototype uses mock data only.")
-                        .font(.system(size: 13))
-                        .foregroundStyle(DS.Palette.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .lineSpacing(2)
-                        .padding(DS.Space.m)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .dsCard()
-                }
-
-                // Prototype
-                VStack(alignment: .leading, spacing: DS.Space.s) {
-                    HStack {
-                        SectionHeader(title: "Prototype")
-                        TagView(text: "Sim")
-                    }
                     VStack(spacing: 0) {
-                        Toggle(isOn: $state.isPro) {
-                            Text("Pro subscription")
-                                .font(.system(size: 15))
-                                .foregroundStyle(DS.Palette.textPrimary)
-                        }
-                        .tint(DS.Palette.accent)
-                        .padding(DS.Space.m)
-
-                        divider
-
-                        Button {
-                            state.screenTimeGranted = true
-                            state.notificationsGranted = true
-                            state.anchorConfigured = true
-                            state.save()
-                        } label: {
-                            HStack {
-                                Text("Grant all mock permissions")
-                                    .font(.system(size: 15))
-                                    .foregroundStyle(DS.Palette.textPrimary)
-                                Spacer()
-                                Image(systemName: "checkmark.circle")
-                                    .foregroundStyle(DS.Palette.textTertiary)
-                            }
+                        SectionHeader(title: "Daily Allowance")
                             .padding(DS.Space.m)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(PressableButtonStyle())
 
-                        divider
-
-                        Button {
-                            showResetConfirm = true
-                        } label: {
-                            HStack {
-                                Text("Reset prototype data")
-                                    .font(.system(size: 15, weight: .medium))
-                                    .foregroundStyle(DS.Palette.destructive)
-                                Spacer()
-                            }
-                            .padding(DS.Space.m)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(PressableButtonStyle())
+                        settingRow(
+                            label: "Daily cap",
+                            value: "\(state.allowanceCap) min",
+                            action: { showAllowanceEditor = true }
+                        )
                     }
                     .dsCard()
-                }
 
-                Text("SleepFuel prototype · Mock data only")
-                    .font(.system(size: 11))
-                    .foregroundStyle(DS.Palette.textTertiary)
-                    .padding(.top, DS.Space.s)
-            }
-            .padding(DS.Space.m)
-        }
-        .background(DS.Palette.obsidian)
-        .navigationTitle("Settings")
-        .navigationBarTitleDisplayMode(.inline)
-        .onChange(of: state.emergencyUnlockMinutes) { state.save() }
-        .onChange(of: state.isPro) { state.save() }
-        .confirmationDialog(
-            "Reset prototype data?",
-            isPresented: $showResetConfirm,
-            titleVisibility: .visible
-        ) {
-            Button("Reset everything", role: .destructive) {
-                withAnimation(DS.motion(reduceMotion)) {
-                    state.resetPrototype()
+                    VStack(spacing: 0) {
+                        SectionHeader(title: "App Blocking")
+                            .padding(DS.Space.m)
+
+                        VStack(spacing: 0) {
+                            settingRow(
+                                label: "Blocked apps",
+                                value: "\(state.blockedAppIDs.count) apps",
+                                action: { showAppsEditor = true }
+                            )
+
+                            Divider()
+                                .background(DS.Palette.border)
+                                .padding(.horizontal, DS.Space.m)
+
+                            settingRow(
+                                label: "Blocking level",
+                                value: state.blockingStrictness.capitalized,
+                                action: { showStrictnessEditor = true }
+                            )
+                        }
+                    }
+                    .dsCard()
+
+                    VStack(spacing: DS.Space.m) {
+                        SecondaryButton(title: "Reset Onboarding") {
+                            state.resetOnboarding()
+                        }
+
+                        Text("This will clear your setup and restart the onboarding flow. Use this for testing.")
+                            .font(.system(size: 12))
+                            .foregroundStyle(DS.Palette.textTertiary)
+                    }
+                    .padding(.top, DS.Space.l)
                 }
+                .padding(DS.Space.l)
             }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Returns the app to first launch with fresh mock data.")
+
+            if showBedtimeEditor {
+                bedtimeEditorOverlay
+            }
+
+            if showWakeTimeEditor {
+                wakeTimeEditorOverlay
+            }
+
+            if showAllowanceEditor {
+                allowanceEditorOverlay
+            }
+
+            if showAppsEditor {
+                appsEditorOverlay
+            }
+
+            if showStrictnessEditor {
+                strictnessEditorOverlay
+            }
         }
     }
 
-    private var divider: some View {
-        Rectangle()
-            .fill(DS.Palette.border)
-            .frame(height: DS.hairline)
-            .padding(.leading, 68)
+    private var header: some View {
+        VStack(alignment: .leading, spacing: DS.Space.s) {
+            Text("SleepFuel")
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(DS.Palette.textPrimary)
+
+            Text("Settings")
+                .font(.system(size: 28, weight: .bold))
+                .foregroundStyle(DS.Palette.textPrimary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func navRow(
-        symbol: String,
-        title: String,
+    private func settingRow(
+        label: String,
         value: String,
-        action: @escaping () -> Void
+        action: @escaping () -> Void,
+        selectable: Bool = true
     ) -> some View {
         Button(action: action) {
             HStack(spacing: DS.Space.m) {
-                IconBadge(symbol: symbol, tint: DS.Palette.textTertiary)
-                Text(title)
-                    .font(.system(size: 15, weight: .medium))
+                Text(label)
+                    .font(.system(size: 16))
                     .foregroundStyle(DS.Palette.textPrimary)
+
                 Spacer()
-                Text(value)
-                    .font(.system(size: 13))
-                    .foregroundStyle(DS.Palette.textTertiary)
-                    .lineLimit(1)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(DS.Palette.textTertiary)
+
+                HStack(spacing: DS.Space.s) {
+                    Text(value)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(DS.Palette.textSecondary)
+
+                    if selectable {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(DS.Palette.textTertiary)
+                    }
+                }
             }
             .padding(DS.Space.m)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressableButtonStyle())
+        .disabled(!selectable)
+    }
+
+    private var bedtimeEditorOverlay: some View {
+        VStack {
+            HStack {
+                Text("Edit Bedtime")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(DS.Palette.textPrimary)
+
+                Spacer()
+
+                Button {
+                    withAnimation(DS.motion(reduceMotion)) {
+                        showBedtimeEditor = false
+                    }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(DS.Palette.textSecondary)
+                }
+                .buttonStyle(PressableButtonStyle())
+            }
+            .padding(DS.Space.l)
+
+            Divider()
+                .background(DS.Palette.border)
+
+            DatePicker(
+                "Bedtime",
+                selection: $state.bedtime,
+                displayedComponents: .hourAndMinute
+            )
+            .datePickerStyle(.wheel)
+            .frame(height: 150)
+
+            Spacer()
+
+            PrimaryButton(title: "Done") {
+                withAnimation(DS.motion(reduceMotion)) {
+                    showBedtimeEditor = false
+                }
+            }
+            .padding(DS.Space.l)
+        }
+        .background(DS.Palette.surface)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
+                .strokeBorder(DS.Palette.border, lineWidth: DS.hairline)
+        )
+        .padding(DS.Space.l)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        .background(Color.black.opacity(0.4).ignoresSafeArea())
+    }
+
+    private var wakeTimeEditorOverlay: some View {
+        VStack {
+            HStack {
+                Text("Edit Wake Time")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(DS.Palette.textPrimary)
+
+                Spacer()
+
+                Button {
+                    withAnimation(DS.motion(reduceMotion)) {
+                        showWakeTimeEditor = false
+                    }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(DS.Palette.textSecondary)
+                }
+                .buttonStyle(PressableButtonStyle())
+            }
+            .padding(DS.Space.l)
+
+            Divider()
+                .background(DS.Palette.border)
+
+            DatePicker(
+                "Wake Time",
+                selection: $state.wakeTime,
+                displayedComponents: .hourAndMinute
+            )
+            .datePickerStyle(.wheel)
+            .frame(height: 150)
+
+            Spacer()
+
+            PrimaryButton(title: "Done") {
+                withAnimation(DS.motion(reduceMotion)) {
+                    showWakeTimeEditor = false
+                }
+            }
+            .padding(DS.Space.l)
+        }
+        .background(DS.Palette.surface)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
+                .strokeBorder(DS.Palette.border, lineWidth: DS.hairline)
+        )
+        .padding(DS.Space.l)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        .background(Color.black.opacity(0.4).ignoresSafeArea())
+    }
+
+    private var allowanceEditorOverlay: some View {
+        VStack {
+            HStack {
+                Text("Edit Daily Allowance")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(DS.Palette.textPrimary)
+
+                Spacer()
+
+                Button {
+                    withAnimation(DS.motion(reduceMotion)) {
+                        showAllowanceEditor = false
+                    }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(DS.Palette.textSecondary)
+                }
+                .buttonStyle(PressableButtonStyle())
+            }
+            .padding(DS.Space.l)
+
+            Divider()
+                .background(DS.Palette.border)
+
+            VStack(spacing: DS.Space.l) {
+                Text("\(state.allowanceCap)")
+                    .font(.system(size: 48, weight: .bold, design: .rounded))
+                    .foregroundStyle(DS.Palette.accent)
+                    .monospacedDigit()
+                    .contentTransition(.numericText())
+
+                Slider(
+                    value: Binding(
+                        get: { Double(state.allowanceCap) },
+                        set: { state.allowanceCap = Int($0) }
+                    ),
+                    in: 30...300,
+                    step: 10
+                )
+                .tint(DS.Palette.accent)
+            }
+            .padding(DS.Space.l)
+
+            Spacer()
+
+            PrimaryButton(title: "Done") {
+                withAnimation(DS.motion(reduceMotion)) {
+                    showAllowanceEditor = false
+                }
+            }
+            .padding(DS.Space.l)
+        }
+        .background(DS.Palette.surface)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
+                .strokeBorder(DS.Palette.border, lineWidth: DS.hairline)
+        )
+        .padding(DS.Space.l)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        .background(Color.black.opacity(0.4).ignoresSafeArea())
+    }
+
+    private var appsEditorOverlay: some View {
+        VStack {
+            HStack {
+                Text("Edit Blocked Apps")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(DS.Palette.textPrimary)
+
+                Spacer()
+
+                Button {
+                    withAnimation(DS.motion(reduceMotion)) {
+                        showAppsEditor = false
+                    }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(DS.Palette.textSecondary)
+                }
+                .buttonStyle(PressableButtonStyle())
+            }
+            .padding(DS.Space.l)
+
+            Divider()
+                .background(DS.Palette.border)
+
+            ScrollView {
+                VStack(spacing: DS.Space.m) {
+                    ForEach(Array(allBlockedAppCategories.keys.sorted()), id: \.self) { category in
+                        VStack(alignment: .leading, spacing: DS.Space.s) {
+                            Text(category)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(DS.Palette.textTertiary)
+                                .textCase(.uppercase)
+
+                            if let apps = allBlockedAppCategories[category] {
+                                VStack(spacing: DS.Space.s) {
+                                    ForEach(apps, id: \.self) { app in
+                                        appToggleRow(app)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(DS.Space.l)
+            }
+
+            Spacer()
+
+            PrimaryButton(title: "Done") {
+                withAnimation(DS.motion(reduceMotion)) {
+                    showAppsEditor = false
+                }
+            }
+            .padding(DS.Space.l)
+        }
+        .background(DS.Palette.surface)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
+                .strokeBorder(DS.Palette.border, lineWidth: DS.hairline)
+        )
+        .padding(DS.Space.l)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        .background(Color.black.opacity(0.4).ignoresSafeArea())
+    }
+
+    private func appToggleRow(_ app: String) -> some View {
+        Button {
+            withAnimation(DS.motion(reduceMotion)) {
+                if state.blockedAppIDs.contains(app) {
+                    state.blockedAppIDs.remove(app)
+                } else {
+                    state.blockedAppIDs.insert(app)
+                }
+            }
+        } label: {
+            HStack(spacing: DS.Space.m) {
+                CheckBox(isOn: state.blockedAppIDs.contains(app))
+                Text(app)
+                    .font(.system(size: 16))
+                    .foregroundStyle(DS.Palette.textPrimary)
+                Spacer()
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressableButtonStyle())
+    }
+
+    private var strictnessEditorOverlay: some View {
+        VStack {
+            HStack {
+                Text("Edit Blocking Level")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(DS.Palette.textPrimary)
+
+                Spacer()
+
+                Button {
+                    withAnimation(DS.motion(reduceMotion)) {
+                        showStrictnessEditor = false
+                    }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(DS.Palette.textSecondary)
+                }
+                .buttonStyle(PressableButtonStyle())
+            }
+            .padding(DS.Space.l)
+
+            Divider()
+                .background(DS.Palette.border)
+
+            ScrollView {
+                VStack(spacing: DS.Space.m) {
+                    ForEach(BlockingStrictness.allCases, id: \.id) { option in
+                        strictnessToggleRow(option)
+                    }
+                }
+                .padding(DS.Space.l)
+            }
+
+            Spacer()
+
+            PrimaryButton(title: "Done") {
+                withAnimation(DS.motion(reduceMotion)) {
+                    showStrictnessEditor = false
+                }
+            }
+            .padding(DS.Space.l)
+        }
+        .background(DS.Palette.surface)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
+                .strokeBorder(DS.Palette.border, lineWidth: DS.hairline)
+        )
+        .padding(DS.Space.l)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        .background(Color.black.opacity(0.4).ignoresSafeArea())
+    }
+
+    private func strictnessToggleRow(_ option: BlockingStrictness) -> some View {
+        Button {
+            withAnimation(DS.motion(reduceMotion)) {
+                state.blockingStrictness = option.rawValue
+            }
+        } label: {
+            HStack(spacing: DS.Space.m) {
+                ZStack {
+                    Circle()
+                        .fill(
+                            state.blockingStrictness == option.rawValue
+                                ? DS.Palette.accent
+                                : DS.Palette.elevated
+                        )
+                        .frame(width: 24, height: 24)
+                        .overlay(
+                            Circle()
+                                .strokeBorder(
+                                    state.blockingStrictness == option.rawValue
+                                        ? DS.Palette.accent
+                                        : DS.Palette.border,
+                                    lineWidth: 1
+                                )
+                        )
+
+                    if state.blockingStrictness == option.rawValue {
+                        Circle()
+                            .fill(.white)
+                            .frame(width: 8, height: 8)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: DS.Space.s) {
+                    Text(option.title)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(DS.Palette.textPrimary)
+                    Text(option.detail)
+                        .font(.system(size: 13))
+                        .foregroundStyle(DS.Palette.textTertiary)
+                }
+
+                Spacer()
+            }
             .contentShape(Rectangle())
         }
         .buttonStyle(PressableButtonStyle())

@@ -7,150 +7,163 @@ struct HistoryView: View {
         Array(state.history.prefix(7))
     }
 
-    private var maxFuel: Int {
-        max(nights.map(\.fuelEarned).max() ?? 1, 1)
+    private var maxAllowance: Int {
+        max(nights.map(\.allowanceEarned).max() ?? 1, 1)
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
+        ZStack {
+            DS.Palette.obsidian.ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
-                VStack(spacing: DS.Space.m) {
-                    summaryTiles
+                VStack(alignment: .leading, spacing: DS.Space.l) {
+                    header
 
-                    VStack(alignment: .leading, spacing: DS.Space.m) {
-                        SectionHeader(title: "Last 7 nights")
-                        if nights.isEmpty {
-                            Text("No nights recorded yet. Arm tonight to start.")
-                                .font(.system(size: 14))
-                                .foregroundStyle(DS.Palette.textTertiary)
-                        } else {
-                            VStack(spacing: DS.Space.m) {
-                                ForEach(nights) { nightRow($0) }
-                            }
-                        }
+                    if nights.isEmpty {
+                        emptyState
+                    } else {
+                        summaryTiles
+                        nightsList
                     }
-                    .padding(DS.Space.m)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .dsCard()
                 }
-                .padding(DS.Space.m)
+                .padding(DS.Space.l)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(DS.Palette.obsidian.ignoresSafeArea())
     }
 
-    // Slides in from the left, so the dismiss control sits top-left
-    // and sends the panel back the way it came.
     private var header: some View {
-        ZStack {
-            Text("History")
-                .font(.system(size: 17, weight: .semibold))
+        VStack(alignment: .leading, spacing: DS.Space.s) {
+            Text("SleepFuel")
+                .font(.system(size: 15, weight: .bold))
                 .foregroundStyle(DS.Palette.textPrimary)
 
-            HStack {
-                Button {
-                    state.showHistory = false
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(DS.Palette.textSecondary)
-                        .frame(width: 40, height: 40)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(PressableButtonStyle())
-                Spacer()
-            }
+            Text("Last 7 nights")
+                .font(.system(size: 28, weight: .bold))
+                .foregroundStyle(DS.Palette.textPrimary)
         }
-        .padding(.horizontal, DS.Space.s)
-        .frame(height: 48)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    // MARK: - Summary
+    private var emptyState: some View {
+        VStack(spacing: DS.Space.m) {
+            Text("No nights recorded yet")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(DS.Palette.textPrimary)
+
+            Text("Start your first sleep session to see your history.")
+                .font(.system(size: 14))
+                .foregroundStyle(DS.Palette.textTertiary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(DS.Space.l)
+        .dsCard()
+    }
 
     private var summaryTiles: some View {
-        let avgProtected = nights.isEmpty
-            ? 0
-            : nights.reduce(0) { $0 + $1.protectedMinutes } / nights.count
-        let unlocks = nights.reduce(0) { $0 + $1.emergencyUnlockCount }
-        let missedAnchors = nights.filter(\.missedAnchor).count
+        let avgSleep = nights.isEmpty
+            ? 0.0
+            : nights.reduce(0) { $0 + $1.actualSleepHours } / Double(nights.count)
+        let totalAllowance = nights.reduce(0) { $0 + $1.allowanceEarned }
 
         return VStack(spacing: DS.Space.s) {
             HStack(spacing: DS.Space.s) {
                 StatTile(
-                    value: TimeFormat.hoursMinutes(avgProtected),
-                    label: "Avg protected sleep"
+                    value: String(format: "%.1f", avgSleep),
+                    label: "Average sleep"
                 )
                 StatTile(
-                    value: "\(nights.reduce(0) { $0 + $1.fuelEarned }) min",
-                    label: "Fuel earned this week"
-                )
-            }
-            HStack(spacing: DS.Space.s) {
-                StatTile(
-                    value: "\(unlocks)",
-                    label: "Emergency unlocks"
-                )
-                StatTile(
-                    value: "\(missedAnchors)",
-                    label: "Missed anchors"
+                    value: "\(totalAllowance)",
+                    label: "Total fuel earned"
                 )
             }
         }
     }
 
-    // MARK: - Night row
+    private var nightsList: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SectionHeader(title: "Sleep records")
+                .padding(.bottom, DS.Space.m)
+
+            VStack(spacing: DS.Space.m) {
+                ForEach(nights) { night in
+                    nightRow(night)
+                }
+            }
+        }
+        .padding(DS.Space.m)
+        .dsCard()
+    }
 
     private func nightRow(_ night: NightRecord) -> some View {
         VStack(alignment: .leading, spacing: DS.Space.s) {
-            HStack {
-                Text(TimeFormat.weekdayShort(night.date))
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(DS.Palette.textSecondary)
-                    .frame(width: 40, alignment: .leading)
-
-                Text(TimeFormat.hoursMinutes(night.protectedMinutes))
-                    .font(.system(size: 13))
-                    .foregroundStyle(DS.Palette.textTertiary)
-                    .monospacedDigit()
+            HStack(spacing: DS.Space.m) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(dayOfWeek(night.date))
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(DS.Palette.textPrimary)
+                    Text(dateString(night.date))
+                        .font(.system(size: 11))
+                        .foregroundStyle(DS.Palette.textTertiary)
+                }
 
                 Spacer()
 
-                if night.emergencyUnlockCount > 0 {
-                    Image(systemName: "bolt.slash.fill")
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(String(format: "%.1fh", night.actualSleepHours))
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(DS.Palette.textPrimary)
+                        .monospacedDigit()
+                    Text("sleep")
                         .font(.system(size: 11))
-                        .foregroundStyle(DS.Palette.accent)
-                }
-                if night.missedAnchor {
-                    Image(systemName: "qrcode")
-                        .font(.system(size: 11))
-                        .foregroundStyle(DS.Palette.accent)
+                        .foregroundStyle(DS.Palette.textTertiary)
                 }
 
-                Text(night.grade)
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                    .foregroundStyle(night.grade.hasPrefix("A") ? DS.Palette.success : DS.Palette.textSecondary)
-                    .frame(width: 28, alignment: .trailing)
+                Spacer()
+
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("\(night.allowanceEarned)")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(DS.Palette.accent)
+                        .monospacedDigit()
+                    Text("min")
+                        .font(.system(size: 11))
+                        .foregroundStyle(DS.Palette.textTertiary)
+                }
+
+                VStack(alignment: .center, spacing: 2) {
+                    Text(night.grade)
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundStyle(
+                            night.grade.hasPrefix("A")
+                                ? DS.Palette.success
+                                : DS.Palette.textSecondary
+                        )
+                }
+                .frame(width: 24, alignment: .center)
             }
 
-            // Fuel bar
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 3, style: .continuous)
                         .fill(DS.Palette.elevated)
                     RoundedRectangle(cornerRadius: 3, style: .continuous)
                         .fill(DS.Palette.accent)
-                        .frame(width: geo.size.width * CGFloat(night.fuelEarned) / CGFloat(maxFuel))
+                        .frame(width: geo.size.width * CGFloat(night.allowanceEarned) / CGFloat(maxAllowance))
                 }
             }
             .frame(height: 6)
-
-            Text("\(night.fuelEarned) min fuel")
-                .font(.system(size: 11))
-                .foregroundStyle(DS.Palette.textTertiary)
-                .monospacedDigit()
         }
+    }
+
+    private func dayOfWeek(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE"
+        return formatter.string(from: date)
+    }
+
+    private func dateString(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "M/d"
+        return formatter.string(from: date)
     }
 }

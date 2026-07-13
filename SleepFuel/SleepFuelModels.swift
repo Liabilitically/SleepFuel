@@ -1,141 +1,173 @@
 import Foundation
 
-// MARK: - Fuel mode
+// MARK: - Sleep & Allowance
 
-enum FuelMode: String, Codable, CaseIterable, Identifiable {
-    case strict
-    case normal
-    case generous
+/// Sleep window in hours (e.g. 22:30 → 6:30 = 8 hours)
+typealias SleepHours = Double
 
-    var id: String { rawValue }
+/// Daily screen-time allowance in minutes
+typealias AllowanceMinutes = Int
 
-    /// Entertainment minutes earned per hour of protected sleep.
-    var minutesPerHour: Int {
-        switch self {
-        case .strict: return 10
-        case .normal: return 15
-        case .generous: return 20
-        }
-    }
-
-    var title: String {
-        switch self {
-        case .strict: return "Strict"
-        case .normal: return "Normal"
-        case .generous: return "Generous"
-        }
-    }
-
-    var detail: String {
-        "1 hr protected sleep = \(minutesPerHour) min fuel"
-    }
-
-    var requiresPro: Bool {
-        self == .strict
-    }
+/// Converts sleep duration to allowance percentage (0–100)
+/// 8h sleep = 100%, scales linearly
+func allowancePercent(for sleepHours: SleepHours) -> Double {
+    let percent = max(0, min(100, (sleepHours / 8.0) * 100))
+    return percent
 }
 
-// MARK: - Blockable targets
-
-struct BlockTarget: Identifiable, Codable, Hashable {
-    let id: String
-    let name: String
-    let symbol: String
-    let isCategory: Bool
+/// Computes allowed screen time for a sleep duration
+func allowanceMinutes(cap: AllowanceMinutes, sleepHours: SleepHours) -> AllowanceMinutes {
+    let percent = allowancePercent(for: sleepHours)
+    return Int(Double(cap) * percent / 100.0)
 }
 
-// MARK: - Session
+// MARK: - Onboarding
 
-enum SessionState: String, Codable {
-    case notArmed
-    case armed
-    case active
-    case completed
-    case failed
+enum OnboardingStep: CaseIterable, Equatable {
+    case welcome
+    case goodHands
+    case motivational
+    case bedtime
+    case wakeTime
+    case allowanceCap
+    case goals
+    case symptoms
+    case blockedApps
+    case blockingStrictness
+    case notificationPermission
+    case planSummary
 
-    var label: String {
-        switch self {
-        case .notArmed: return "Not armed"
-        case .armed: return "Armed"
-        case .active: return "Active"
-        case .completed: return "Completed"
-        case .failed: return "Failed"
-        }
+    var index: Int {
+        Self.allCases.firstIndex(of: self) ?? 0
+    }
+
+    var total: Int {
+        Self.allCases.count
     }
 }
 
-struct ActiveSession: Codable {
-    var startedAt: Date
-    var simulatedMinutes: Int
-    var penalties: [Penalty]
-    var anchorEngaged: Bool
+struct OnboardingState: Codable {
+    var currentStep: OnboardingStep = .welcome
+    var completed: Bool = false
+
+    // Answers
+    var heardAbout: String = ""
+    var bedtime: Date = AppState.time(22, 30)
+    var wakeTime: Date = AppState.time(6, 30)
+    var allowanceCap: AllowanceMinutes = 180
+    var goals: Set<String> = []
+    var symptoms: Set<String> = []
+    var blockedAppIDs: Set<String> = []
+    var blockingStrictness: String = "medium"
+    var notificationsAllowed: Bool = false
 }
 
-// MARK: - Penalties
-
-enum PenaltyKind: String, Codable, CaseIterable {
-    case lateStart
-    case emergencyUnlock
-    case missedAnchor
-    case permissionDisabled
-    case manualSkip
-
-    var label: String {
-        switch self {
-        case .lateStart: return "Late start"
-        case .emergencyUnlock: return "Emergency unlock"
-        case .missedAnchor: return "Missed anchor"
-        case .permissionDisabled: return "Permission disabled"
-        case .manualSkip: return "Session ended early"
-        }
-    }
-}
-
-struct Penalty: Identifiable, Codable, Hashable {
-    var id: UUID = UUID()
-    let kind: PenaltyKind
-    let minutes: Int
-}
-
-// MARK: - Night record
+// MARK: - Night Record
 
 struct NightRecord: Identifiable, Codable, Hashable {
     var id: UUID = UUID()
     let date: Date
     let scheduledMinutes: Int
-    let penalties: [Penalty]
-    let anchorCompleted: Bool
-    let protectedMinutes: Int
-    let fuelEarned: Int
-    let grade: String
+    let actualSleepHours: Double
+    let allowanceEarned: Int
 
-    var emergencyUnlockCount: Int {
-        penalties.filter { $0.kind == .emergencyUnlock }.count
+    var allowancePercent: Double {
+        allowancePercent(for: actualSleepHours)
     }
 
-    var missedAnchor: Bool {
-        penalties.contains { $0.kind == .missedAnchor }
+    var grade: String {
+        let percent = allowancePercent
+        switch percent {
+        case 90...: return "A"
+        case 80..<90: return "B"
+        case 70..<80: return "C"
+        case 60..<70: return "D"
+        default: return "F"
+        }
     }
 }
 
-// MARK: - Formatting helpers
+// MARK: - Blocking Strictness
+
+enum BlockingStrictness: String, CaseIterable, Identifiable {
+    case easy
+    case medium
+    case strict
+
+    var id: String { rawValue }
+
+    var title: String {
+        rawValue.capitalized
+    }
+
+    var detail: String {
+        switch self {
+        case .easy: return "1-tap to unblock"
+        case .medium: return "Text rewrite to unblock"
+        case .strict: return "Multiple barriers to unblock"
+        }
+    }
+}
+
+// MARK: - Goal & Symptom Options
+
+let allGoals: [String: String] = [
+    "better-sleep": "Better Sleep",
+    "better-focus": "Better Focus",
+    "less-addiction": "Less Addiction",
+    "mental-health": "Better Mental Health",
+    "relationships": "Better Relationships",
+    "productivity": "More Productivity",
+]
+
+let allSymptoms: [String: String] = [
+    "fatigue": "Fatigue / Tiredness",
+    "poor-focus": "Poor Focus",
+    "brain-fog": "Brain Fog",
+    "anxiety": "Anxiety / Stress",
+    "mood-swings": "Mood Swings",
+    "sleep-issues": "Sleep Issues",
+]
+
+let allHeardAboutOptions: [String] = [
+    "Search Engine",
+    "Friend or Family",
+    "Social Media",
+    "App Store",
+    "Podcast",
+    "Other",
+]
+
+let allBlockedAppCategories: [String: [String]] = [
+    "Social": ["Instagram", "TikTok", "X", "Snapchat", "Discord", "WhatsApp"],
+    "Entertainment": ["YouTube", "Netflix", "Reddit"],
+    "Productivity": ["Email", "Slack", "Telegram"],
+    "Games": ["Gaming Apps"],
+]
+
+// MARK: - Time Formatting
 
 enum TimeFormat {
-    /// 462 -> "7h 42m"
     static func hoursMinutes(_ minutes: Int) -> String {
-        let m = max(0, minutes)
-        let h = m / 60
-        let r = m % 60
-        if h == 0 { return "\(r)m" }
-        if r == 0 { return "\(h)h" }
-        return "\(h)h \(r)m"
+        let h = minutes / 60
+        let m = minutes % 60
+        if h == 0 { return "\(m)m" }
+        if m == 0 { return "\(h)h" }
+        return "\(h)h \(m)m"
     }
 
     static func clock(_ date: Date) -> String {
         date.formatted(date: .omitted, time: .shortened)
     }
 
-    static func weekdayShort(_ date: Date) -> String {
-        date.formatted(.dateTime.weekday(.abbreviated))
+    static func sleepDuration(bedtime: Date, wakeTime: Date) -> Double {
+        let cal = Calendar.current
+        let b = cal.dateComponents([.hour, .minute], from: bedtime)
+        let w = cal.dateComponents([.hour, .minute], from: wakeTime)
+        let bm = Double((b.hour ?? 0) * 60 + (b.minute ?? 0))
+        let wm = Double((w.hour ?? 0) * 60 + (w.minute ?? 0))
+        var diffMinutes = wm - bm
+        if diffMinutes < 0 { diffMinutes += 1440 }
+        return diffMinutes / 60.0
     }
 }

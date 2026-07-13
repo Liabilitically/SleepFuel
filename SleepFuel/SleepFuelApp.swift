@@ -9,7 +9,6 @@ struct SleepFuelApp: App {
             RootView()
                 .environment(appState)
                 .preferredColorScheme(.dark)
-                .tint(DS.Palette.accent)
         }
     }
 }

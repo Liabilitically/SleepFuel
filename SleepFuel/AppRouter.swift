@@ -1,30 +1,11 @@
 import SwiftUI
 
-// MARK: - Routes
-
-enum RootRoute: Equatable {
-    case launch
-    case onboarding
-    case main
-}
-
-enum MainRoute: Hashable {
-    case settings
-    case editApps
-    case editSchedule
-    case anchorSetup
-}
-
-// MARK: - Root view
-
 struct RootView: View {
     @Environment(AppState.self) private var state
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        @Bindable var state = state
-
-        return ZStack {
+        ZStack {
             DS.Palette.obsidian.ignoresSafeArea()
 
             switch state.route {
@@ -32,67 +13,70 @@ struct RootView: View {
                 LaunchView()
                     .transition(.opacity)
             case .onboarding:
-                OnboardingFlowView()
+                OnboardingContainerView()
                     .transition(.opacity)
             case .main:
-                MainView()
+                MainTabView()
                     .transition(.opacity)
             }
         }
         .animation(DS.motion(reduceMotion), value: state.route)
-        .sheet(isPresented: $state.showPaywall) {
-            PaywallView()
-        }
     }
 }
 
-// MARK: - Main container
+struct MainTabView: View {
+    @Environment(AppState.self) private var state
 
-struct MainView: View {
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            Group {
+                switch state.selectedBottomTab {
+                case .home:
+                    HomeView()
+                case .history:
+                    HistoryView()
+                case .settings:
+                    SettingsView()
+                }
+            }
+
+            BottomTabBar()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(DS.Palette.obsidian)
+    }
+}
+
+struct BottomTabBar: View {
     @Environment(AppState.self) private var state
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        @Bindable var state = state
-
-        return ZStack {
-            NavigationStack(path: $state.path) {
-                DashboardView()
-                    .navigationDestination(for: MainRoute.self) { route in
-                        switch route {
-                        case .settings:
-                            SettingsView()
-                        case .editApps:
-                            MockAppSelectionView(mode: .standalone)
-                        case .editSchedule:
-                            ScheduleSetupView(mode: .standalone)
-                        case .anchorSetup:
-                            MockAnchorSetupView(mode: .standalone)
-                        }
+        HStack(spacing: 0) {
+            ForEach(BottomTab.allCases, id: \.rawValue) { tab in
+                Button {
+                    withAnimation(DS.motion(reduceMotion)) {
+                        state.selectedBottomTab = tab
                     }
+                } label: {
+                    VStack(spacing: 4) {
+                        Image(systemName: tab.icon)
+                            .font(.system(size: 20, weight: .semibold))
+                        Text(tab.label)
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .foregroundStyle(state.selectedBottomTab == tab ? DS.Palette.accent : DS.Palette.textTertiary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 60)
+                }
             }
-
-            // History lives top-left, so its panel slides in from the left.
-            if state.showHistory {
-                HistoryView()
-                    .transition(reduceMotion
-                                ? .opacity
-                                : .move(edge: .leading).combined(with: .opacity))
-                    .zIndex(1)
-            }
         }
-        .animation(DS.motion(reduceMotion), value: state.showHistory)
-        .fullScreenCover(isPresented: $state.showActiveSession) {
-            ActiveSleepSessionView()
-        }
-        .fullScreenCover(item: $state.presentedReport) { report in
-            MorningReportView(report: report)
-        }
+        .background(DS.Palette.surface)
+        .overlay(
+            Rectangle()
+                .fill(DS.Palette.border)
+                .frame(height: DS.hairline),
+            alignment: .top
+        )
     }
-}
-
-/// Views that appear both inside onboarding and as pushed screens.
-enum ScreenMode: Equatable {
-    case onboarding
-    case standalone
 }

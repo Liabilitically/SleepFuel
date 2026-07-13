@@ -1,0 +1,43 @@
+import SwiftUI
+
+struct OnboardingNotificationsView: View {
+    @Environment(AppState.self) private var state
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        VStack(spacing: DS.Space.l) {
+            OnboardingStepHeader(
+                title: "Enable notifications?",
+                subtitle: "Get bedtime reminders and sleep summaries."
+            )
+
+            Spacer()
+
+            Image(systemName: "bell.fill")
+                .font(.system(size: 48, weight: .medium))
+                .foregroundStyle(DS.Palette.accent)
+                .padding(DS.Space.xl)
+                .background(DS.Palette.elevated)
+                .clipShape(Circle())
+
+            Spacer()
+
+            VStack(spacing: DS.Space.m) {
+                PrimaryButton(title: "Allow") {
+                    withAnimation(DS.motion(reduceMotion)) {
+                        state.onboarding.notificationsAllowed = true
+                    }
+                }
+
+                SecondaryButton(title: "Don't Allow") {
+                    withAnimation(DS.motion(reduceMotion)) {
+                        state.onboarding.notificationsAllowed = false
+                    }
+                }
+            }
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
