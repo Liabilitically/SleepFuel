@@ -27,13 +27,11 @@ enum OnboardingStep: String, CaseIterable, Equatable, Codable {
     case welcome
     case goodHands
     case motivational
+    case goals
+    case symptoms
     case bedtime
     case wakeTime
     case allowanceCap
-    case goals
-    case symptoms
-    case blockedApps
-    case blockingStrictness
     case notificationPermission
     case planSummary
 
@@ -57,8 +55,6 @@ struct OnboardingState: Codable {
     var allowanceCap: AllowanceMinutes = 180
     var goals: Set<String> = []
     var symptoms: Set<String> = []
-    var blockedAppIDs: Set<String> = []
-    var blockingStrictness: String = "medium"
     var notificationsAllowed: Bool = false
 }
 
@@ -87,46 +83,24 @@ struct NightRecord: Identifiable, Codable, Hashable {
     }
 }
 
-// MARK: - Blocking Strictness
-
-enum BlockingStrictness: String, CaseIterable, Identifiable {
-    case easy
-    case medium
-    case strict
-
-    var id: String { rawValue }
-
-    var title: String {
-        rawValue.capitalized
-    }
-
-    var detail: String {
-        switch self {
-        case .easy: return "1-tap to unblock"
-        case .medium: return "Text rewrite to unblock"
-        case .strict: return "Multiple barriers to unblock"
-        }
-    }
-}
-
 // MARK: - Goal & Symptom Options
 
 let allGoals: [String: String] = [
-    "better-sleep": "Better Sleep",
-    "better-focus": "Better Focus",
-    "less-addiction": "Less Addiction",
-    "mental-health": "Better Mental Health",
-    "relationships": "Better Relationships",
-    "productivity": "More Productivity",
+    "better-sleep": "Sleep better",
+    "better-focus": "Focus better",
+    "less-addiction": "Use my phone less",
+    "mental-health": "Feel better",
+    "relationships": "More time with people",
+    "productivity": "Get more done",
 ]
 
 let allSymptoms: [String: String] = [
-    "fatigue": "Fatigue / Tiredness",
-    "poor-focus": "Poor Focus",
-    "brain-fog": "Brain Fog",
-    "anxiety": "Anxiety / Stress",
-    "mood-swings": "Mood Swings",
-    "sleep-issues": "Sleep Issues",
+    "fatigue": "Tired all day",
+    "poor-focus": "Hard to focus",
+    "brain-fog": "Foggy brain",
+    "anxiety": "Stressed out",
+    "mood-swings": "Mood swings",
+    "sleep-issues": "Bad sleep",
 ]
 
 let allHeardAboutOptions: [String] = [
@@ -138,11 +112,14 @@ let allHeardAboutOptions: [String] = [
     "Other",
 ]
 
-let allBlockedAppCategories: [String: [String]] = [
-    "Social": ["Instagram", "TikTok", "X", "Snapchat", "Discord", "WhatsApp"],
-    "Entertainment": ["YouTube", "Netflix", "Reddit"],
-    "Productivity": ["Email", "Slack", "Telegram"],
-    "Games": ["Gaming Apps"],
+// MARK: - Emergency unlock
+
+/// One of these is picked at random. The user must retype it exactly
+/// (no autocorrect) to unlock their phone in an emergency.
+let emergencyParagraphs: [String] = [
+    "I am choosing to unlock my phone right now. I know this takes time away from tomorrow. Sleep matters more than my screen, and I will put my phone down as soon as this emergency is over.",
+    "This is a real emergency and not a habit. My rest is how I earn my time. When this is done, I will lock my phone again and let the night do its work.",
+    "I set these rules for myself because I want to sleep well and feel better. I am breaking them on purpose, just this once, and I will get back on track right away.",
 ]
 
 // MARK: - Time Formatting

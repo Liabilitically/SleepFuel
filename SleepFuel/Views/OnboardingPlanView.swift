@@ -14,24 +14,19 @@ struct OnboardingPlanView: View {
         return selected.isEmpty ? "None" : selected
     }
 
-    private var strictnessDisplay: String {
-        BlockingStrictness(rawValue: state.onboarding.blockingStrictness)?.title ?? "Medium"
-    }
-
     var body: some View {
         VStack(spacing: DS.Space.l) {
             OnboardingStepHeader(
                 title: "Your plan is ready",
-                subtitle: "Here's what we've set up."
+                subtitle: "Sleep the full night and this is yours every day."
             )
 
             VStack(spacing: DS.Space.m) {
-                summaryCard("Bedtime", TimeFormat.clock(state.onboarding.bedtime))
+                summaryCard("Bed time", TimeFormat.clock(state.onboarding.bedtime))
                 summaryCard("Wake time", TimeFormat.clock(state.onboarding.wakeTime))
-                summaryCard("Sleep window", String(format: "%.1f hours", sleepDurationHours))
-                summaryCard("Daily allowance", "\(state.onboarding.allowanceCap) min")
+                summaryCard("Sleep", String(format: "%.1f hours", sleepDurationHours))
+                summaryCard("Phone time each day", "\(state.onboarding.allowanceCap) min")
                 summaryCard("Goals", goalsDisplay)
-                summaryCard("Blocking level", strictnessDisplay)
             }
 
             Spacer()

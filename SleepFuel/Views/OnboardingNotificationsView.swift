@@ -7,8 +7,8 @@ struct OnboardingNotificationsView: View {
     var body: some View {
         VStack(spacing: DS.Space.l) {
             OnboardingStepHeader(
-                title: "Enable notifications?",
-                subtitle: "Get bedtime reminders and sleep summaries."
+                title: "Turn on notifications?",
+                subtitle: "We remind you 5 minutes before bed and show your time each morning."
             )
 
             Spacer()

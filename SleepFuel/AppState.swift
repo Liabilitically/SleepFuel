@@ -1,6 +1,14 @@
 import Foundation
 import Observation
 
+/// Where the user is in the daily cycle.
+/// day → night (sleep mode) → morning (report) → day …
+enum DayPhase: Equatable {
+    case day
+    case night
+    case morning
+}
+
 @Observable
 final class AppState {
     // MARK: - Root routing
@@ -11,7 +19,7 @@ final class AppState {
 
     var onboarding = OnboardingState()
 
-    // MARK: - Home screen state
+    // MARK: - Settings
 
     var bedtime: Date = AppState.time(22, 30) {
         didSet { save() }
@@ -22,12 +30,6 @@ final class AppState {
     var allowanceCap: AllowanceMinutes = 180 {
         didSet { save() }
     }
-    var blockedAppIDs: Set<String> = [] {
-        didSet { save() }
-    }
-    var blockingStrictness: String = "medium" {
-        didSet { save() }
-    }
 
     var goals: Set<String> = [] {
         didSet { save() }
@@ -36,13 +38,42 @@ final class AppState {
         didSet { save() }
     }
 
-    // MARK: - Sleep session state
+    // MARK: - Daily cycle
+
+    var phase: DayPhase = .day
+
+    /// Allowance minutes lost so far tonight from the phone being open.
+    var nightDrainedMinutes: Double = 0
 
     var todayAllowance: AllowanceMinutes = 0
     var lastNight: NightRecord?
     var history: [NightRecord] = []
 
     var selectedBottomTab: BottomTab = .home
+
+    // MARK: - Derived
+
+    var sleepWindowMinutes: Double {
+        TimeFormat.sleepDuration(bedtime: bedtime, wakeTime: wakeTime) * 60
+    }
+
+    /// Allowance lost per minute the phone is open during sleep time.
+    /// Sleeping the full window keeps the full cap; being on the phone
+    /// all night drains it to zero.
+    var nightDrainPerMinute: Double {
+        guard sleepWindowMinutes > 0 else { return 1 }
+        return Double(allowanceCap) / sleepWindowMinutes
+    }
+
+    /// What tomorrow's allowance would be if the night ended right now.
+    var tomorrowAllowance: AllowanceMinutes {
+        max(0, allowanceCap - Int(nightDrainedMinutes.rounded()))
+    }
+
+    /// Out of time for today: every non-essential app shows the block screen.
+    var isBlocked: Bool {
+        phase == .day && onboarding.completed && todayAllowance <= 0
+    }
 
     // MARK: - Init
 
@@ -62,8 +93,6 @@ final class AppState {
         bedtime = Self.time(22, 30)
         wakeTime = Self.time(6, 30)
         allowanceCap = 180
-        blockedAppIDs = ["instagram", "tiktok", "youtube"]
-        blockingStrictness = "medium"
         goals = ["better-sleep", "better-focus"]
         symptoms = ["fatigue", "poor-focus"]
 
@@ -111,32 +140,67 @@ final class AppState {
         bedtime = onboarding.bedtime
         wakeTime = onboarding.wakeTime
         allowanceCap = onboarding.allowanceCap
-        blockedAppIDs = onboarding.blockedAppIDs
-        blockingStrictness = onboarding.blockingStrictness
         goals = onboarding.goals
         symptoms = onboarding.symptoms
+        todayAllowance = allowanceCap
         route = .main
         save()
     }
 
     func resetOnboarding() {
         onboarding = OnboardingState()
+        phase = .day
         route = .onboarding
     }
 
-    // MARK: - Sleep tracking simulation
+    // MARK: - Night (sleep mode)
 
-    func simulateNight(actualSleepHours: Double) {
-        let allowance = allowanceMinutes(cap: allowanceCap, sleepHours: actualSleepHours)
+    func startNight() {
+        nightDrainedMinutes = 0
+        phase = .night
+    }
+
+    /// Called while the phone is open during sleep time.
+    /// Drains tomorrow's allowance for the seconds the screen was on.
+    func nightTick(openSeconds: Double) {
+        let drained = nightDrainedMinutes + nightDrainPerMinute * openSeconds / 60
+        nightDrainedMinutes = min(Double(allowanceCap), drained)
+    }
+
+    func endNight() {
+        let cap = Double(allowanceCap)
+        let sleptFraction = cap > 0 ? max(0, 1 - nightDrainedMinutes / cap) : 1
+        let sleepHours = (sleepWindowMinutes / 60) * sleptFraction
         let record = NightRecord(
             date: Date(),
-            scheduledMinutes: Int(TimeFormat.sleepDuration(bedtime: bedtime, wakeTime: wakeTime) * 60),
-            actualSleepHours: actualSleepHours,
-            allowanceEarned: allowance
+            scheduledMinutes: Int(sleepWindowMinutes),
+            actualSleepHours: (sleepHours * 10).rounded() / 10,
+            allowanceEarned: tomorrowAllowance
         )
         lastNight = record
         history.insert(record, at: 0)
-        todayAllowance = allowance
+        todayAllowance = record.allowanceEarned
+        phase = .morning
+        save()
+    }
+
+    func startDay() {
+        phase = .day
+    }
+
+    // MARK: - Day (allowance depletion)
+
+    /// One minute of phone use during the day.
+    func useDayMinute() {
+        guard phase == .day, onboarding.completed, todayAllowance > 0 else { return }
+        todayAllowance -= 1
+        save()
+    }
+
+    /// Emergency bypass: grants a short window of time after the user
+    /// retypes the emergency paragraph exactly.
+    func emergencyUnlock() {
+        todayAllowance += 15
         save()
     }
 
@@ -148,8 +212,6 @@ final class AppState {
             bedtime: bedtime,
             wakeTime: wakeTime,
             allowanceCap: allowanceCap,
-            blockedAppIDs: blockedAppIDs,
-            blockingStrictness: blockingStrictness,
             goals: goals,
             symptoms: symptoms,
             todayAllowance: todayAllowance,
@@ -163,8 +225,6 @@ final class AppState {
         bedtime = snapshot.bedtime
         wakeTime = snapshot.wakeTime
         allowanceCap = snapshot.allowanceCap
-        blockedAppIDs = snapshot.blockedAppIDs
-        blockingStrictness = snapshot.blockingStrictness
         goals = snapshot.goals
         symptoms = snapshot.symptoms
         todayAllowance = snapshot.todayAllowance

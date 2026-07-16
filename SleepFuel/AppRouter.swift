@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 struct RootView: View {
     @Environment(AppState.self) private var state
@@ -26,24 +27,50 @@ struct RootView: View {
 
 struct MainTabView: View {
     @Environment(AppState.self) private var state
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Every minute the app is open during the day counts as phone use.
+    private let dayTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            Group {
-                switch state.selectedBottomTab {
-                case .home:
-                    HomeView()
-                case .history:
-                    HistoryView()
-                case .settings:
-                    SettingsView()
+        ZStack {
+            switch state.phase {
+            case .night:
+                NightView()
+                    .transition(.opacity)
+            case .morning:
+                MorningView()
+                    .transition(.opacity)
+            case .day:
+                ZStack(alignment: .bottom) {
+                    Group {
+                        switch state.selectedBottomTab {
+                        case .home:
+                            HomeView()
+                        case .history:
+                            HistoryView()
+                        case .settings:
+                            SettingsView()
+                        }
+                    }
+
+                    BottomTabBar()
+                }
+                .transition(.opacity)
+
+                if state.isBlocked {
+                    BlockedView()
+                        .transition(.opacity)
                 }
             }
-
-            BottomTabBar()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(DS.Palette.obsidian)
+        .animation(DS.motion(reduceMotion), value: state.phase)
+        .animation(DS.motion(reduceMotion), value: state.isBlocked)
+        .onReceive(dayTimer) { _ in
+            state.useDayMinute()
+        }
     }
 }
 

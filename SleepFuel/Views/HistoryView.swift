@@ -32,16 +32,10 @@ struct HistoryView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: DS.Space.s) {
-            Text("SleepFuel")
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(DS.Palette.textPrimary)
-
-            Text("Last 7 nights")
-                .font(.system(size: 28, weight: .bold))
-                .foregroundStyle(DS.Palette.textPrimary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        Text("Last 7 nights")
+            .font(DS.Fonts.title)
+            .foregroundStyle(DS.Palette.textPrimary)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var emptyState: some View {
@@ -68,12 +62,12 @@ struct HistoryView: View {
         return VStack(spacing: DS.Space.s) {
             HStack(spacing: DS.Space.s) {
                 StatTile(
-                    value: String(format: "%.1f", avgSleep),
-                    label: "Average sleep"
+                    value: String(format: "%.1f h", avgSleep),
+                    label: "Sleep per night"
                 )
                 StatTile(
-                    value: "\(totalAllowance)",
-                    label: "Total fuel earned"
+                    value: "\(totalAllowance) min",
+                    label: "Time earned"
                 )
             }
         }

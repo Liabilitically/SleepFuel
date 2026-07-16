@@ -80,20 +80,16 @@ struct OnboardingContainerView: View {
             OnboardingGoodHandsView()
         case .motivational:
             OnboardingMotivationalView()
+        case .goals:
+            OnboardingGoalsView()
+        case .symptoms:
+            OnboardingSymptonsView()
         case .bedtime:
             OnboardingBedtimeView()
         case .wakeTime:
             OnboardingWakeTimeView()
         case .allowanceCap:
             OnboardingAllowanceCapView()
-        case .goals:
-            OnboardingGoalsView()
-        case .symptoms:
-            OnboardingSymptonsView()
-        case .blockedApps:
-            OnboardingBlockedAppsView()
-        case .blockingStrictness:
-            OnboardingStrictnessView()
         case .notificationPermission:
             OnboardingNotificationsView()
         case .planSummary:
@@ -113,10 +109,6 @@ struct OnboardingContainerView: View {
             return !state.onboarding.goals.isEmpty
         case .symptoms:
             return true
-        case .blockedApps:
-            return !state.onboarding.blockedAppIDs.isEmpty
-        case .blockingStrictness:
-            return !state.onboarding.blockingStrictness.isEmpty
         case .notificationPermission, .planSummary:
             return true
         }

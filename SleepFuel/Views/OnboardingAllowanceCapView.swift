@@ -10,8 +10,8 @@ struct OnboardingAllowanceCapView: View {
     var body: some View {
         VStack(spacing: DS.Space.l) {
             OnboardingStepHeader(
-                title: "How much entertainment time per day?",
-                subtitle: "This is your daily allowance cap."
+                title: "How much phone time do you want each day?",
+                subtitle: "Sleep the full night and you get all of it."
             )
 
             VStack(spacing: DS.Space.l) {

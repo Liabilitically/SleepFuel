@@ -4,13 +4,13 @@ struct OnboardingMotivationalView: View {
     var body: some View {
         VStack(spacing: DS.Space.l) {
             OnboardingStepHeader(
-                title: "Good sleep = more focus tomorrow",
-                subtitle: "Based on sleep data, 8 hours = 100 minutes of entertainment tomorrow."
+                title: "Sleep earns your screen time",
+                subtitle: "Leave your phone alone at night and you get your full time tomorrow. Use it at night and tomorrow's time shrinks."
             )
 
             Spacer()
 
-            Image(systemName: "chart.bar.fill")
+            Image(systemName: "moon.zzz.fill")
                 .font(.system(size: 48, weight: .medium))
                 .foregroundStyle(DS.Palette.accent)
                 .padding(DS.Space.xl)
@@ -18,10 +18,10 @@ struct OnboardingMotivationalView: View {
                 .clipShape(Circle())
 
             VStack(spacing: DS.Space.s) {
-                Text("8 hours of sleep")
+                Text("Full night of sleep")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(DS.Palette.textPrimary)
-                Text("= 100 minutes of entertainment")
+                Text("= full screen time tomorrow")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(DS.Palette.textPrimary)
             }

@@ -5,8 +5,6 @@ struct PrototypeSnapshot: Codable {
     var bedtime: Date
     var wakeTime: Date
     var allowanceCap: Int
-    var blockedAppIDs: Set<String>
-    var blockingStrictness: String
     var goals: Set<String>
     var symptoms: Set<String>
     var todayAllowance: Int
@@ -15,7 +13,7 @@ struct PrototypeSnapshot: Codable {
 }
 
 enum PrototypeStorage {
-    private static let key = "sleepfuel.v2.snapshot"
+    private static let key = "sleepfuel.v3.snapshot"
 
     static func load() -> PrototypeSnapshot? {
         guard let data = UserDefaults.standard.data(forKey: key) else { return nil }

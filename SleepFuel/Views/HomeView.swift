@@ -1,17 +1,13 @@
 import SwiftUI
+import Combine
 
 struct HomeView: View {
     @Environment(AppState.self) private var state
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var currentTime = Date()
 
     private let timer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
 
-    private var sleepDurationHours: Double {
-        TimeFormat.sleepDuration(bedtime: state.bedtime, wakeTime: state.wakeTime)
-    }
-
-    private var timeToSleep: (hours: Int, minutes: Int) {
+    private var minutesToBedtime: Int {
         let cal = Calendar.current
         let now = currentTime
         let today = cal.dateComponents([.year, .month, .day], from: now)
@@ -22,15 +18,15 @@ struct HomeView: View {
             of: cal.date(from: today) ?? now
         ) ?? now
 
-        let targetTime = bedtimeToday < now
+        let target = bedtimeToday < now
             ? cal.date(byAdding: .day, value: 1, to: bedtimeToday) ?? bedtimeToday
             : bedtimeToday
 
-        let diff = targetTime.timeIntervalSince(now)
-        let hours = Int(diff) / 3600
-        let minutes = (Int(diff) % 3600) / 60
+        return Int(target.timeIntervalSince(now)) / 60
+    }
 
-        return (hours, minutes)
+    private var bedtimeCountdown: String {
+        TimeFormat.hoursMinutes(minutesToBedtime)
     }
 
     var body: some View {
@@ -41,7 +37,12 @@ struct HomeView: View {
                 VStack(spacing: DS.Space.l) {
                     header
 
-                    VStack(spacing: DS.Space.l) {
+                    // Mock of the "5 minutes to bed" notification
+                    if minutesToBedtime <= 5 {
+                        bedtimeSoonBanner
+                    }
+
+                    VStack(spacing: DS.Space.m) {
                         FuelBatteryView(
                             fuelMinutes: state.todayAllowance,
                             capMinutes: state.allowanceCap
@@ -50,16 +51,15 @@ struct HomeView: View {
                         .padding(DS.Space.l)
                         .dsCard()
 
-                        timeToSleepCard
+                        sleepCard
 
-                        tonightsSleepCard
-
-                        blockedAppsCard
-
-                        startSleepModeCard
+                        PrimaryButton(title: "Start sleep mode") {
+                            state.startNight()
+                        }
                     }
-                    .padding(DS.Space.l)
                 }
+                .padding(DS.Space.l)
+                .padding(.bottom, 80)
             }
         }
         .onReceive(timer) { _ in
@@ -69,70 +69,52 @@ struct HomeView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: DS.Space.s) {
-            Text("SleepFuel")
-                .font(.system(size: 15, weight: .bold))
+            Text("Today")
+                .font(DS.Fonts.title)
                 .foregroundStyle(DS.Palette.textPrimary)
 
-            Text("Today's fuel")
-                .font(.system(size: 28, weight: .bold))
-                .foregroundStyle(DS.Palette.textPrimary)
+            Text("Time left on your phone")
+                .font(.system(size: 15))
+                .foregroundStyle(DS.Palette.textSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(DS.Space.l)
     }
 
-    private var timeToSleepCard: some View {
-        VStack(alignment: .leading, spacing: DS.Space.s) {
-            Text("Time to sleep")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(DS.Palette.textTertiary)
-                .textCase(.uppercase)
-
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text("\(timeToSleep.hours)")
-                    .font(.system(size: 32, weight: .bold, design: .rounded))
-                    .foregroundStyle(DS.Palette.accent)
-                    .monospacedDigit()
-
-                Text("h")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(DS.Palette.textSecondary)
-
-                Text("\(timeToSleep.minutes)")
-                    .font(.system(size: 32, weight: .bold, design: .rounded))
-                    .foregroundStyle(DS.Palette.accent)
-                    .monospacedDigit()
-
-                Text("m")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(DS.Palette.textSecondary)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(DS.Space.m)
-        .dsCard()
-    }
-
-    private var tonightsSleepCard: some View {
+    private var sleepCard: some View {
         VStack(alignment: .leading, spacing: DS.Space.m) {
-            Text("Tonight's sleep")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(DS.Palette.textTertiary)
-                .textCase(.uppercase)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("Bed in")
+                    .font(.system(size: 15))
+                    .foregroundStyle(DS.Palette.textSecondary)
 
-            VStack(alignment: .leading, spacing: DS.Space.s) {
-                StatusRow(
-                    label: "Bedtime",
-                    value: TimeFormat.clock(state.bedtime)
-                )
-                StatusRow(
-                    label: "Wake time",
-                    value: TimeFormat.clock(state.wakeTime)
-                )
-                StatusRow(
-                    label: "Sleep window",
-                    value: String(format: "%.1f h", sleepDurationHours)
-                )
+                Text(bedtimeCountdown)
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundStyle(DS.Palette.accent)
+                    .monospacedDigit()
+            }
+
+            HStack {
+                HStack(spacing: 6) {
+                    Image(systemName: "moon.fill")
+                        .font(.system(size: 13))
+                        .foregroundStyle(DS.Palette.textTertiary)
+                    Text(TimeFormat.clock(state.bedtime))
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(DS.Palette.textPrimary)
+                        .monospacedDigit()
+                }
+
+                Spacer()
+
+                HStack(spacing: 6) {
+                    Image(systemName: "sun.max.fill")
+                        .font(.system(size: 13))
+                        .foregroundStyle(DS.Palette.textTertiary)
+                    Text(TimeFormat.clock(state.wakeTime))
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(DS.Palette.textPrimary)
+                        .monospacedDigit()
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -140,34 +122,25 @@ struct HomeView: View {
         .dsCard()
     }
 
-    private var blockedAppsCard: some View {
-        VStack(alignment: .leading, spacing: DS.Space.s) {
-            Text("Apps blocked tonight")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(DS.Palette.textTertiary)
-                .textCase(.uppercase)
+    private var bedtimeSoonBanner: some View {
+        HStack(spacing: DS.Space.m) {
+            Image(systemName: "bell.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(DS.Palette.accent)
 
-            Text("\(state.blockedAppIDs.count) apps")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(DS.Palette.textPrimary)
-                .monospacedDigit()
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Bed time soon")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(DS.Palette.textPrimary)
+
+                Text("Sleep mode starts in \(max(minutesToBedtime, 0)) min. Time to put your phone down.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(DS.Palette.textSecondary)
+            }
+
+            Spacer()
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(DS.Space.m)
-        .dsCard()
-    }
-
-    private var startSleepModeCard: some View {
-        Button {
-        } label: {
-            Text("Start sleep mode")
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .background(DS.Palette.accent)
-                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous))
-        }
-        .buttonStyle(PressableButtonStyle())
+        .dsCard(elevated: true)
     }
 }
