@@ -175,7 +175,8 @@ struct SettingsView: View {
     }
 
     private var bedtimeEditorOverlay: some View {
-        VStack {
+        @Bindable var state = state
+        return VStack {
             HStack {
                 Text("Edit Bedtime")
                     .font(.system(size: 17, weight: .semibold))
@@ -228,7 +229,8 @@ struct SettingsView: View {
     }
 
     private var wakeTimeEditorOverlay: some View {
-        VStack {
+        @Bindable var state = state
+        return VStack {
             HStack {
                 Text("Edit Wake Time")
                     .font(.system(size: 17, weight: .semibold))

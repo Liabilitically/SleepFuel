@@ -9,7 +9,8 @@ struct OnboardingWakeTimeView: View {
     }
 
     var body: some View {
-        VStack(spacing: DS.Space.l) {
+        @Bindable var state = state
+        return VStack(spacing: DS.Space.l) {
             OnboardingStepHeader(
                 title: "What time do you wake up?",
                 subtitle: "Set your wake time in hours and minutes."

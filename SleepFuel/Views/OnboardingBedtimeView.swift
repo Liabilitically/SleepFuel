@@ -3,10 +3,10 @@ import SwiftUI
 struct OnboardingBedtimeView: View {
     @Environment(AppState.self) private var state
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Bindable var bindableState = AppState()
 
     var body: some View {
-        VStack(spacing: DS.Space.l) {
+        @Bindable var state = state
+        return VStack(spacing: DS.Space.l) {
             OnboardingStepHeader(
                 title: "What time do you go to bed?",
                 subtitle: "Set your bedtime in hours and minutes."

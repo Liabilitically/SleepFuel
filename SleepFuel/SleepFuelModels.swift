@@ -23,7 +23,7 @@ func allowanceMinutes(cap: AllowanceMinutes, sleepHours: SleepHours) -> Allowanc
 
 // MARK: - Onboarding
 
-enum OnboardingStep: CaseIterable, Equatable {
+enum OnboardingStep: String, CaseIterable, Equatable, Codable {
     case welcome
     case goodHands
     case motivational
@@ -72,7 +72,7 @@ struct NightRecord: Identifiable, Codable, Hashable {
     let allowanceEarned: Int
 
     var allowancePercent: Double {
-        allowancePercent(for: actualSleepHours)
+        SleepFuel.allowancePercent(for: actualSleepHours)
     }
 
     var grade: String {
