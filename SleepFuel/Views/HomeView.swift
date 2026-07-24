@@ -54,7 +54,7 @@ struct HomeView: View {
                         sleepCard
 
                         PrimaryButton(title: "Start sleep mode") {
-                            state.startNight()
+                            state.startNightManually()
                         }
                     }
                 }

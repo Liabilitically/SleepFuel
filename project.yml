@@ -12,6 +12,15 @@ targets:
     platform: iOS
     sources:
       - SleepFuel
+      - SleepFuelShared
+    dependencies:
+      - target: SleepFuelWidgets
+        embed: true
+    entitlements:
+      path: SleepFuel/SleepFuel.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.calyantech.sleepfuel
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.calyantech.sleepfuel
@@ -20,6 +29,31 @@ targets:
         INFOPLIST_KEY_UIUserInterfaceStyle: Dark
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         INFOPLIST_KEY_CFBundleDisplayName: SleepFuel
+        INFOPLIST_KEY_NSSupportsLiveActivities: YES
         TARGETED_DEVICE_FAMILY: "1"
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: "1.0"
+  SleepFuelWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - SleepFuelWidgets
+      - SleepFuelShared
+    entitlements:
+      path: SleepFuelWidgets/SleepFuelWidgets.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.calyantech.sleepfuel
+    info:
+      path: SleepFuelWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: SleepFuel
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.calyantech.sleepfuel.widgets
+        TARGETED_DEVICE_FAMILY: "1"
+        SKIP_INSTALL: YES
         CURRENT_PROJECT_VERSION: 1
         MARKETING_VERSION: "1.0"

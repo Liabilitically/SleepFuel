@@ -22,14 +22,13 @@ struct LaunchView: View {
                 .multilineTextAlignment(.center)
         }
         .opacity(visible ? 1 : 0)
-        .onAppear {
+        .task {
             withAnimation(DS.motion(reduceMotion)) {
                 visible = true
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                withAnimation(DS.motion(reduceMotion)) {
-                    state.route = state.onboarding.completed ? .main : .onboarding
-                }
+            try? await Task.sleep(for: .seconds(1.2))
+            withAnimation(DS.motion(reduceMotion)) {
+                state.route = state.onboarding.completed ? .main : .onboarding
             }
         }
     }

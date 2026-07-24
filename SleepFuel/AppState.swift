@@ -3,13 +3,14 @@ import Observation
 
 /// Where the user is in the daily cycle.
 /// day → night (sleep mode) → morning (report) → day …
-enum DayPhase: Equatable {
+enum DayPhase: String, Equatable, Codable {
     case day
     case night
     case morning
 }
 
 @Observable
+@MainActor
 final class AppState {
     // MARK: - Root routing
 
@@ -22,10 +23,10 @@ final class AppState {
     // MARK: - Settings
 
     var bedtime: Date = AppState.time(22, 30) {
-        didSet { save() }
+        didSet { scheduleChanged() }
     }
     var wakeTime: Date = AppState.time(6, 30) {
-        didSet { save() }
+        didSet { scheduleChanged() }
     }
     var allowanceCap: AllowanceMinutes = 180 {
         didSet { save() }
@@ -37,21 +38,38 @@ final class AppState {
     var symptoms: Set<String> = [] {
         didSet { save() }
     }
+    var notificationsAllowed: Bool = false
 
     // MARK: - Daily cycle
 
     var phase: DayPhase = .day
+    var nightStartedAt: Date?
 
     /// Allowance minutes lost so far tonight from the phone being open.
     var nightDrainedMinutes: Double = 0
 
-    var todayAllowance: AllowanceMinutes = 0
+    /// Minutes of screen time left today. Double for smooth accrual.
+    var todayRemaining: Double = 0
+
     var lastNight: NightRecord?
     var history: [NightRecord] = []
 
     var selectedBottomTab: BottomTab = .home
 
+    /// When the app last became active; foreground time is charged
+    /// against the current phase from this mark.
+    @ObservationIgnored private var foregroundSince: Date?
+    @ObservationIgnored private var lastPushedKey: String = ""
+
     // MARK: - Derived
+
+    var todayAllowance: AllowanceMinutes {
+        max(0, Int(todayRemaining.rounded(.down)))
+    }
+
+    var tomorrowAllowance: AllowanceMinutes {
+        max(0, allowanceCap - Int(nightDrainedMinutes.rounded()))
+    }
 
     var sleepWindowMinutes: Double {
         TimeFormat.sleepDuration(bedtime: bedtime, wakeTime: wakeTime) * 60
@@ -63,11 +81,6 @@ final class AppState {
     var nightDrainPerMinute: Double {
         guard sleepWindowMinutes > 0 else { return 1 }
         return Double(allowanceCap) / sleepWindowMinutes
-    }
-
-    /// What tomorrow's allowance would be if the night ended right now.
-    var tomorrowAllowance: AllowanceMinutes {
-        max(0, allowanceCap - Int(nightDrainedMinutes.rounded()))
     }
 
     /// Out of time for today: every non-essential app shows the block screen.
@@ -110,7 +123,160 @@ final class AppState {
         )
         lastNight = mockSleep
         history = [mockSleep]
-        todayAllowance = mockSleep.allowanceEarned
+        todayRemaining = Double(mockSleep.allowanceEarned)
+    }
+
+    // MARK: - App lifecycle (real time tracking)
+
+    /// Called when the app comes to the foreground.
+    func appBecameActive(now: Date = Date()) {
+        foregroundSince = now
+        syncWithClock(now: now)
+        pushExternalState()
+    }
+
+    /// Called when the app leaves the foreground. While backgrounded or
+    /// locked, no time is charged — exactly the behavior the product wants.
+    func appResignedActive(now: Date = Date()) {
+        accrue(now: now)
+        foregroundSince = nil
+        pushExternalState()
+        save()
+    }
+
+    /// Charge foreground time since the last mark to the current phase.
+    func accrue(now: Date = Date()) {
+        guard onboarding.completed, let since = foregroundSince else { return }
+        let minutes = now.timeIntervalSince(since) / 60
+        guard minutes > 0 else { return }
+        foregroundSince = now
+
+        switch phase {
+        case .night:
+            let drained = nightDrainedMinutes + minutes * nightDrainPerMinute
+            nightDrainedMinutes = min(Double(allowanceCap), drained)
+        case .day:
+            todayRemaining = max(0, todayRemaining - minutes)
+        case .morning:
+            break
+        }
+    }
+
+    /// Runs once a minute while the app is open: charges time and
+    /// enters/exits sleep mode by the clock.
+    func minuteTick(now: Date = Date()) {
+        accrue(now: now)
+        syncWithClock(now: now)
+        pushExternalState()
+        save()
+    }
+
+    /// Enter or exit sleep mode automatically based on the wall clock.
+    private func syncWithClock(now: Date) {
+        guard onboarding.completed else { return }
+        let inWindow = sleepWindow(containing: now) != nil
+        if inWindow, phase == .day {
+            beginNight(now: now)
+        } else if !inWindow, phase == .night {
+            finishNight(now: now)
+        }
+    }
+
+    /// The sleep window (start–end) that contains `now`, if any.
+    private func sleepWindow(containing now: Date) -> (start: Date, end: Date)? {
+        let cal = Calendar.current
+        let lengthSeconds = sleepWindowMinutes * 60
+        guard lengthSeconds > 0 else { return nil }
+
+        for dayOffset in [-1, 0] {
+            guard let day = cal.date(byAdding: .day, value: dayOffset, to: now),
+                  let start = cal.date(
+                      bySettingHour: cal.component(.hour, from: bedtime),
+                      minute: cal.component(.minute, from: bedtime),
+                      second: 0,
+                      of: day
+                  ) else { continue }
+            let end = start.addingTimeInterval(lengthSeconds)
+            if now >= start && now < end {
+                return (start, end)
+            }
+        }
+        return nil
+    }
+
+    // MARK: - Night (sleep mode)
+
+    func startNightManually(now: Date = Date()) {
+        beginNight(now: now)
+    }
+
+    private func beginNight(now: Date) {
+        guard phase != .night else { return }
+        accrue(now: now)
+        nightStartedAt = now
+        nightDrainedMinutes = 0
+        phase = .night
+        LiveActivityManager.startNight(
+            bedtimeText: TimeFormat.clock(bedtime),
+            wakeTimeText: TimeFormat.clock(wakeTime),
+            remaining: allowanceCap
+        )
+        pushExternalState()
+        save()
+    }
+
+    func finishNight(now: Date = Date()) {
+        guard phase == .night else { return }
+        accrue(now: now)
+
+        let cap = Double(allowanceCap)
+        let sleptFraction = cap > 0 ? max(0, 1 - nightDrainedMinutes / cap) : 1
+        let sleepHours = (sleepWindowMinutes / 60) * sleptFraction
+        let record = NightRecord(
+            date: now,
+            scheduledMinutes: Int(sleepWindowMinutes),
+            actualSleepHours: (sleepHours * 10).rounded() / 10,
+            allowanceEarned: tomorrowAllowance
+        )
+        lastNight = record
+        history.insert(record, at: 0)
+        todayRemaining = Double(record.allowanceEarned)
+        nightStartedAt = nil
+        phase = .morning
+        LiveActivityManager.endNight(finalRemaining: record.allowanceEarned)
+        pushExternalState()
+        save()
+    }
+
+    func startDay() {
+        phase = .day
+        pushExternalState()
+        save()
+    }
+
+    /// Emergency bypass: grants a short window of time after the user
+    /// retypes the emergency paragraph exactly.
+    func emergencyUnlock() {
+        todayRemaining += 15
+        pushExternalState()
+        save()
+    }
+
+    // MARK: - External surfaces (widget + live activity)
+
+    /// Mirrors current state to the widget (app group) and the
+    /// Live Activity. Deduplicated, so it is cheap to call often.
+    func pushExternalState() {
+        guard onboarding.completed else { return }
+        let remaining = phase == .night ? tomorrowAllowance : todayAllowance
+        let key = "\(phase.rawValue)-\(remaining)-\(allowanceCap)"
+        guard key != lastPushedKey else { return }
+        lastPushedKey = key
+
+        SharedStore.write(remaining: remaining, cap: allowanceCap, phase: phase.rawValue)
+        if phase == .night {
+            LiveActivityManager.update(remaining: remaining, isDraining: foregroundSince != nil)
+        }
     }
 
     // MARK: - Onboarding progression
@@ -142,66 +308,28 @@ final class AppState {
         allowanceCap = onboarding.allowanceCap
         goals = onboarding.goals
         symptoms = onboarding.symptoms
-        todayAllowance = allowanceCap
+        notificationsAllowed = onboarding.notificationsAllowed
+        todayRemaining = Double(allowanceCap)
         route = .main
+        if notificationsAllowed {
+            NotificationManager.reschedule(bedtime: bedtime, wakeTime: wakeTime)
+        }
+        pushExternalState()
         save()
     }
 
     func resetOnboarding() {
         onboarding = OnboardingState()
         phase = .day
+        NotificationManager.cancelAll()
         route = .onboarding
     }
 
-    // MARK: - Night (sleep mode)
-
-    func startNight() {
-        nightDrainedMinutes = 0
-        phase = .night
-    }
-
-    /// Called while the phone is open during sleep time.
-    /// Drains tomorrow's allowance for the seconds the screen was on.
-    func nightTick(openSeconds: Double) {
-        let drained = nightDrainedMinutes + nightDrainPerMinute * openSeconds / 60
-        nightDrainedMinutes = min(Double(allowanceCap), drained)
-    }
-
-    func endNight() {
-        let cap = Double(allowanceCap)
-        let sleptFraction = cap > 0 ? max(0, 1 - nightDrainedMinutes / cap) : 1
-        let sleepHours = (sleepWindowMinutes / 60) * sleptFraction
-        let record = NightRecord(
-            date: Date(),
-            scheduledMinutes: Int(sleepWindowMinutes),
-            actualSleepHours: (sleepHours * 10).rounded() / 10,
-            allowanceEarned: tomorrowAllowance
-        )
-        lastNight = record
-        history.insert(record, at: 0)
-        todayAllowance = record.allowanceEarned
-        phase = .morning
+    private func scheduleChanged() {
         save()
-    }
-
-    func startDay() {
-        phase = .day
-    }
-
-    // MARK: - Day (allowance depletion)
-
-    /// One minute of phone use during the day.
-    func useDayMinute() {
-        guard phase == .day, onboarding.completed, todayAllowance > 0 else { return }
-        todayAllowance -= 1
-        save()
-    }
-
-    /// Emergency bypass: grants a short window of time after the user
-    /// retypes the emergency paragraph exactly.
-    func emergencyUnlock() {
-        todayAllowance += 15
-        save()
+        if notificationsAllowed, onboarding.completed {
+            NotificationManager.reschedule(bedtime: bedtime, wakeTime: wakeTime)
+        }
     }
 
     // MARK: - Persistence
@@ -209,12 +337,16 @@ final class AppState {
     func save() {
         PrototypeStorage.save(PrototypeSnapshot(
             onboardingCompleted: onboarding.completed,
+            notificationsAllowed: notificationsAllowed,
             bedtime: bedtime,
             wakeTime: wakeTime,
             allowanceCap: allowanceCap,
             goals: goals,
             symptoms: symptoms,
-            todayAllowance: todayAllowance,
+            phase: phase,
+            nightStartedAt: nightStartedAt,
+            nightDrainedMinutes: nightDrainedMinutes,
+            todayRemaining: todayRemaining,
             lastNight: lastNight,
             history: history
         ))
@@ -222,12 +354,16 @@ final class AppState {
 
     private func apply(_ snapshot: PrototypeSnapshot) {
         onboarding.completed = snapshot.onboardingCompleted
+        notificationsAllowed = snapshot.notificationsAllowed
         bedtime = snapshot.bedtime
         wakeTime = snapshot.wakeTime
         allowanceCap = snapshot.allowanceCap
         goals = snapshot.goals
         symptoms = snapshot.symptoms
-        todayAllowance = snapshot.todayAllowance
+        phase = snapshot.phase
+        nightStartedAt = snapshot.nightStartedAt
+        nightDrainedMinutes = snapshot.nightDrainedMinutes
+        todayRemaining = snapshot.todayRemaining
         lastNight = snapshot.lastNight
         history = snapshot.history
 
@@ -238,7 +374,7 @@ final class AppState {
         }
     }
 
-    static func time(_ hour: Int, _ minute: Int) -> Date {
+    nonisolated static func time(_ hour: Int, _ minute: Int) -> Date {
         Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: Date()) ?? Date()
     }
 }

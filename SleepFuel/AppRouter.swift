@@ -29,8 +29,8 @@ struct MainTabView: View {
     @Environment(AppState.self) private var state
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// Every minute the app is open during the day counts as phone use.
-    private let dayTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
+    /// Charges screen time and syncs the sleep window with the clock.
+    private let minuteTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
 
     var body: some View {
         ZStack {
@@ -68,11 +68,13 @@ struct MainTabView: View {
         .background(DS.Palette.obsidian)
         .animation(DS.motion(reduceMotion), value: state.phase)
         .animation(DS.motion(reduceMotion), value: state.isBlocked)
-        .onReceive(dayTimer) { _ in
-            state.useDayMinute()
+        .onReceive(minuteTimer) { _ in
+            state.minuteTick()
         }
     }
 }
+
+// MARK: - Liquid Glass tab bar
 
 struct BottomTabBar: View {
     @Environment(AppState.self) private var state
@@ -88,22 +90,39 @@ struct BottomTabBar: View {
                 } label: {
                     VStack(spacing: 4) {
                         Image(systemName: tab.icon)
-                            .font(.system(size: 20, weight: .semibold))
+                            .font(.system(size: 19, weight: .semibold))
                         Text(tab.label)
-                            .font(.system(size: 11, weight: .medium))
+                            .font(.system(size: 11, weight: .semibold))
                     }
-                    .foregroundStyle(state.selectedBottomTab == tab ? DS.Palette.accent : DS.Palette.textTertiary)
+                    .foregroundStyle(
+                        state.selectedBottomTab == tab
+                            ? DS.Palette.accent
+                            : DS.Palette.textPrimary.opacity(0.8)
+                    )
                     .frame(maxWidth: .infinity)
-                    .frame(height: 60)
+                    .frame(height: 58)
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(PressableButtonStyle())
             }
         }
-        .background(DS.Palette.surface)
-        .overlay(
-            Rectangle()
-                .fill(DS.Palette.border)
-                .frame(height: DS.hairline),
-            alignment: .top
-        )
+        .padding(.horizontal, DS.Space.s)
+        .liquidGlass(in: Capsule())
+        .padding(.horizontal, DS.Space.xl)
+        .padding(.bottom, DS.Space.s)
+    }
+}
+
+extension View {
+    /// iOS 26 Liquid Glass, with a material fallback on older systems.
+    @ViewBuilder
+    func liquidGlass(in shape: some InsettableShape) -> some View {
+        if #available(iOS 26.0, *) {
+            self.glassEffect(.regular, in: shape)
+        } else {
+            self
+                .background(.ultraThinMaterial, in: shape)
+                .overlay(shape.strokeBorder(Color.white.opacity(0.10), lineWidth: 1))
+        }
     }
 }

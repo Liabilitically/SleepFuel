@@ -24,14 +24,19 @@ struct OnboardingNotificationsView: View {
 
             VStack(spacing: DS.Space.m) {
                 PrimaryButton(title: "Allow") {
-                    withAnimation(DS.motion(reduceMotion)) {
-                        state.onboarding.notificationsAllowed = true
+                    Task {
+                        let granted = await NotificationManager.requestAuthorization()
+                        withAnimation(DS.motion(reduceMotion)) {
+                            state.onboarding.notificationsAllowed = granted
+                            state.advanceOnboarding()
+                        }
                     }
                 }
 
                 SecondaryButton(title: "Don't Allow") {
                     withAnimation(DS.motion(reduceMotion)) {
                         state.onboarding.notificationsAllowed = false
+                        state.advanceOnboarding()
                     }
                 }
             }

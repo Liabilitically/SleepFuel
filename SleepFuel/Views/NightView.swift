@@ -43,7 +43,7 @@ struct NightView: View {
                 Spacer()
 
                 PrimaryButton(title: "I'm awake") {
-                    state.endNight()
+                    state.finishNight()
                 }
 
                 Text("Wakes you up and ends sleep mode.")
@@ -53,7 +53,8 @@ struct NightView: View {
             .padding(DS.Space.l)
         }
         .onReceive(tick) { _ in
-            state.nightTick(openSeconds: 1)
+            state.accrue()
+            state.pushExternalState()
         }
     }
 
