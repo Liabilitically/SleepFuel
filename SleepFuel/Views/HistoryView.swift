@@ -27,6 +27,7 @@ struct HistoryView: View {
                     }
                 }
                 .padding(DS.Space.l)
+                .padding(.bottom, 100)
             }
         }
     }

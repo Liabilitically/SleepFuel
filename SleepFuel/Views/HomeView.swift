@@ -3,6 +3,7 @@ import Combine
 
 struct HomeView: View {
     @Environment(AppState.self) private var state
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var currentTime = Date()
 
     private let timer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
@@ -68,16 +69,34 @@ struct HomeView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: DS.Space.s) {
-            Text("Today")
-                .font(DS.Fonts.title)
-                .foregroundStyle(DS.Palette.textPrimary)
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: DS.Space.s) {
+                Text("Today")
+                    .font(DS.Fonts.title)
+                    .foregroundStyle(DS.Palette.textPrimary)
 
-            Text("Time left on your phone")
-                .font(.system(size: 15))
-                .foregroundStyle(DS.Palette.textSecondary)
+                Text("Time left on your phone")
+                    .font(.system(size: 15))
+                    .foregroundStyle(DS.Palette.textSecondary)
+            }
+
+            Spacer()
+
+            Button {
+                withAnimation(DS.motion(reduceMotion)) {
+                    state.selectedBottomTab = .history
+                }
+            } label: {
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(DS.Palette.textPrimary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(PressableButtonStyle())
+            .liquidGlass(in: Circle())
+            .accessibilityLabel("History")
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var sleepCard: some View {

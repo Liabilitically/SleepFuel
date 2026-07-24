@@ -56,6 +56,10 @@ final class AppState {
 
     var selectedBottomTab: BottomTab = .home
 
+    /// Which Settings sub-screen is open, if any. While one is open the
+    /// bottom nav morphs into a single back chevron.
+    var settingsEditor: SettingsEditor? = nil
+
     /// When the app last became active; foreground time is charged
     /// against the current phase from this mark.
     @ObservationIgnored private var foregroundSince: Date?
@@ -385,6 +389,12 @@ enum RootRoute: Equatable {
     case launch
     case onboarding
     case main
+}
+
+enum SettingsEditor: Equatable {
+    case bedtime
+    case wakeTime
+    case allowance
 }
 
 enum BottomTab: Int, CaseIterable {

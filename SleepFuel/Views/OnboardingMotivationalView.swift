@@ -21,7 +21,10 @@ struct OnboardingMotivationalView: View {
                 Text("Full night of sleep")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(DS.Palette.textPrimary)
-                Text("= full screen time tomorrow")
+                Text("=")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(DS.Palette.textSecondary)
+                Text("Full screen time tomorrow")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(DS.Palette.textPrimary)
             }
